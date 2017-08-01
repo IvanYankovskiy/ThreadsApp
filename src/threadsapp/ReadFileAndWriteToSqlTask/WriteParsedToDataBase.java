@@ -19,18 +19,19 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 /**
  *
  * @author Ivan
  */
-public class WriteParsedToDataBase implements Callable<String> {
+public class WriteParsedToDataBase implements Runnable {
     AtomicLong written;
     AtomicLong writtenA;
     AtomicLong writtenB;
     AtomicLong writtenC;
     private LinkedBlockingQueue<JType> objectQueue;
-    private CountDownLatch countDownLatch;
-    private Lock databaseWriterLock = new ReentrantLock();
+    private CyclicBarrier BARRIER;
     private final String sqlJTypeA = "INSERT INTO JTypeA " + 
                         "(protocol_version, type, device_id, report_time, event_name) " +
                         "VALUES(?,?,?,?,?);";
@@ -46,45 +47,39 @@ public class WriteParsedToDataBase implements Callable<String> {
     //Задать данные авторизации в БД 
     final String USER = "root";
     final String PASS = "12345";
-    public WriteParsedToDataBase (LinkedBlockingQueue<JType> objectQueue, CountDownLatch countDownLatch){
+    
+    public WriteParsedToDataBase (LinkedBlockingQueue<JType> objectQueue, CyclicBarrier BARRIER){
         this.objectQueue = objectQueue;
-        this.countDownLatch = countDownLatch;
+        this.BARRIER = BARRIER;
         written = new AtomicLong(0);
         writtenA = new AtomicLong(0);
         writtenB = new AtomicLong(0);
         writtenC = new AtomicLong(0);
     }
+    
     @Override
-    public String call() throws Exception, InterruptedException {
-        try{
-            while((countDownLatch.getCount() > 0) | !objectQueue.isEmpty()){
-                if(!objectQueue.isEmpty()){
-                    JType currentObject = objectQueue.poll(5, TimeUnit.SECONDS);
-                    databaseWriterLock.lock();
-                    if (jTypes_to_DataBase(currentObject)) {
-                        written.addAndGet(1);
-                    }
-                    if (((writtenA.get()%10000) == 0)||((writtenB.get()%10000) == 0)||((writtenC.get()%10000) == 0)){
-                        System.out.println("Записано объектов типа JTypeA: " + writtenA.get());
-                        System.out.println("Записано объектов типа JTypeB: " + writtenB.get());
-                        System.out.println("Записано объектов типа JTypeC: " + writtenC.get());
-                        System.out.println("Всего записано объектов: " + written.get());
-                    }
-                    databaseWriterLock.unlock(); // снимаем блокировку
-                }else
-                    countDownLatch.await();
+    public void run(){
+        while(true ){
+            try{
+                identifyAndWrite(objectQueue.poll());              
+            }
+            catch(Exception ex){
+                System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage()+"\n");
+                Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            finally{
+                System.out.println("Поток обработки " + this.toString() + " завершил свою работу ");
+                System.out.println("Объекты " + written.get() + " записаны в базу!");
             }
         }
-        catch(Exception ex){
-            System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage()+"\n");
-            Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        finally{
-            //databaseWriterLock.unlock();
-        }
-        return "Объекты " + written.get() + " записаны в базу!\n";
     }
-
+    private void identifyAndWrite(JType obj) throws InterruptedException{
+        JType currentObject = objectQueue.poll(5, TimeUnit.SECONDS);
+        if (jTypes_to_DataBase(currentObject)) {
+            written.addAndGet(1);
+        }
+        printProgress();
+    }
     private boolean jTypes_to_DataBase(JType obj){
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -124,7 +119,6 @@ public class WriteParsedToDataBase implements Callable<String> {
                     break;
                 case "JTypeC":
                     stmt = conn.prepareStatement(this.sqlJTypeC);
-                    conn.setAutoCommit(false);
                     ArrayList <JTypeTime> reports = ((JTypeC)obj).getReports();
                     for(JTypeTime time : reports){
                         stmt.setDouble(1, obj.getProtocol_version());
@@ -177,4 +171,13 @@ public class WriteParsedToDataBase implements Callable<String> {
         //System.out.println(objectTimestamp.toString());
         return objectTimestamp;
     }
+    private void printProgress(){
+        if (((writtenA.get()%10000) == 0)||((writtenB.get()%10000) == 0)||((writtenC.get()%10000) == 0)){
+            System.out.println("Записано объектов типа JTypeA: " + writtenA.get());
+            System.out.println("Записано объектов типа JTypeB: " + writtenB.get());
+            System.out.println("Записано объектов типа JTypeC: " + writtenC.get());
+            System.out.println("Всего записано объектов: " + written.get());
+        }
+    }
+    
 }
