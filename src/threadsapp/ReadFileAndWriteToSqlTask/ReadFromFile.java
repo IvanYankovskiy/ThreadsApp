@@ -23,20 +23,24 @@ import java.util.logging.Logger;
 import java.util.stream.*;
 import java.nio.file.Paths;
 import java.nio.charset.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  *
  * @author Ivan
  */
 public class ReadFromFile implements Runnable {
+    private final AtomicBoolean isDone;
     private String FILENAME;
     private LinkedBlockingQueue<String> queue;
-    public ReadFromFile(String FILENAME,LinkedBlockingQueue<String> queue){
+    public ReadFromFile(String FILENAME,LinkedBlockingQueue<String> queue, AtomicBoolean isDone){
         this.FILENAME = FILENAME;
         this.queue = queue;
+        this.isDone = isDone;
     }
     
     @Override
     public void run() {
+        this.isDone.set(false);
         try (Stream<String> stream = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8)) {
                 stream.forEach(line -> {
                     try {
@@ -50,6 +54,7 @@ public class ReadFromFile implements Runnable {
                 System.out.println(" Выброс исключения в " + this.toString() + " " + e.getMessage() + "\n");
                 e.printStackTrace();
         }
+        isDone.set(true);
         System.out.println();
         System.out.println();
         System.out.println("Все объекты в файле " + FILENAME + "прочитаны");

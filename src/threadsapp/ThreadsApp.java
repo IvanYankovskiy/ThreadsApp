@@ -27,6 +27,7 @@ import java.nio.file.Paths;
 import java.nio.charset.*;
 import threadsapp.ReadFileAndWriteToSqlTask.*;
 import java.sql.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import threadsapp.ReadFromDatabaseAndWriteToFileTask.*;
 
 
@@ -57,12 +58,11 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
           System.out.println("Файл объектов из БД уже существует.");
         
         //создать пул потоков задачи а) и запустить его
-        //executeTaskAPool(FILENAME);
-        
+        executeTaskAPool(FILENAME);
         //используя Stream API подсчитаем количество сгенерированных объектов
         long generatedObjectsCounter = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8).count();
         //вывести количество количество объектов в файле
-        System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " объектов\n");
+        System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " объектов");
 
         LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(10000);
         LinkedBlockingQueue<JType> queueParsedObjects = new LinkedBlockingQueue<JType>(5000);
@@ -147,7 +147,8 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
         }
    }
     public static void executeTaskBPool(String FILENAME,LinkedBlockingQueue<String> inputQueue, LinkedBlockingQueue<JType> outputQueue) throws IOException, ExecutionException, InterruptedException{
-        CyclicBarrier BARRIER = new CyclicBarrier(2);
+        AtomicBoolean readFileIsDone = new AtomicBoolean(false);
+        AtomicBoolean validationIsDone = new AtomicBoolean(false);
         //Список для объектов CompleteFuture
         List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         //Списко для строк резульатов выполнения потоков
@@ -155,9 +156,9 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
         //Пул потоков для обработки задачи а)
         ExecutorService task_B_Executor = Executors.newFixedThreadPool(3);
         try{
-            CompletableFuture.runAsync(new ReadFromFile(FILENAME, inputQueue), task_B_Executor);
-            CompletableFuture.runAsync(new RecognizeAndValidate(inputQueue, outputQueue, BARRIER), task_B_Executor);
-            CompletableFuture.runAsync(new WriteParsedToDataBase(outputQueue, BARRIER), task_B_Executor);
+            CompletableFuture.runAsync(new ReadFromFile(FILENAME, inputQueue, readFileIsDone), task_B_Executor);
+            CompletableFuture.runAsync(new RecognizeAndValidate(inputQueue, outputQueue, readFileIsDone, validationIsDone), task_B_Executor);
+            CompletableFuture.runAsync(new WriteParsedToDataBase(outputQueue, validationIsDone), task_B_Executor);
             
         }catch(Exception ex) {
             System.out.println(" Выброс исключения " + ex.getMessage()+"\n");

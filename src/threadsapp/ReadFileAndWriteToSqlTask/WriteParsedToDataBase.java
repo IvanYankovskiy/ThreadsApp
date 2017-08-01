@@ -21,15 +21,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  *
  * @author Ivan
  */
 public class WriteParsedToDataBase implements Runnable {
-    AtomicLong written;
     AtomicLong writtenA;
     AtomicLong writtenB;
     AtomicLong writtenC;
+    AtomicBoolean validationIsDone;
     private LinkedBlockingQueue<JType> objectQueue;
     private CyclicBarrier BARRIER;
     private final String sqlJTypeA = "INSERT INTO JTypeA " + 
@@ -48,10 +49,9 @@ public class WriteParsedToDataBase implements Runnable {
     final String USER = "root";
     final String PASS = "12345";
     
-    public WriteParsedToDataBase (LinkedBlockingQueue<JType> objectQueue, CyclicBarrier BARRIER){
+    public WriteParsedToDataBase (LinkedBlockingQueue<JType> objectQueue, AtomicBoolean validationIsDone){
         this.objectQueue = objectQueue;
-        this.BARRIER = BARRIER;
-        written = new AtomicLong(0);
+        this.validationIsDone = validationIsDone;
         writtenA = new AtomicLong(0);
         writtenB = new AtomicLong(0);
         writtenC = new AtomicLong(0);
@@ -59,7 +59,11 @@ public class WriteParsedToDataBase implements Runnable {
     
     @Override
     public void run(){
-        while(true ){
+        // a - поток валидации, если true, то работу закончил
+        // b - objectQueue.isEmpty() - переменная хранит true, если очередь пуста
+        // !((a^b)&a) - логическое выражение, которое принимает значение false тогда и только тогда, когда
+        // a == true, и b == true и позволит выйти из цикла. Это будет означать, что все объекты валидированы и отправлены в БД
+        while(!((validationIsDone.get() ^ objectQueue.isEmpty())& validationIsDone.get())) {
             try{
                 identifyAndWrite(objectQueue.poll());              
             }
@@ -68,16 +72,15 @@ public class WriteParsedToDataBase implements Runnable {
                 Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
             }
             finally{
-                System.out.println("Поток обработки " + this.toString() + " завершил свою работу ");
-                System.out.println("Объекты " + written.get() + " записаны в базу!");
+                printProgress();
             }
         }
+        System.out.println("Поток обработки " + this.toString() + " завершил свою работу ");
+        printProgress();
     }
     private void identifyAndWrite(JType obj) throws InterruptedException{
         JType currentObject = objectQueue.poll(5, TimeUnit.SECONDS);
-        if (jTypes_to_DataBase(currentObject)) {
-            written.addAndGet(1);
-        }
+        jTypes_to_DataBase(currentObject);
         printProgress();
     }
     private boolean jTypes_to_DataBase(JType obj){
@@ -104,7 +107,7 @@ public class WriteParsedToDataBase implements Runnable {
                     stmt.setTimestamp(4, objectTimestamp);
                     stmt.setString(5, obj.getEvent_name());
                     if(stmt.executeUpdate() > 0)
-                        writtenA.addAndGet(1);
+                        writtenA.incrementAndGet();
                     break;
                 case "JTypeB":
                     stmt = conn.prepareStatement(this.sqlJTypeB);
@@ -115,7 +118,7 @@ public class WriteParsedToDataBase implements Runnable {
                     stmt.setString(5, obj.getEvent_name());
                     stmt.setString(6, ((JTypeB)obj).getReports());
                     if(stmt.executeUpdate() > 0)
-                        writtenB.addAndGet(1);
+                        writtenB.incrementAndGet();
                     break;
                 case "JTypeC":
                     stmt = conn.prepareStatement(this.sqlJTypeC);
@@ -132,9 +135,10 @@ public class WriteParsedToDataBase implements Runnable {
                     }                 
                     for(int r : stmt.executeBatch()){
                         if(r > 0)
-                        writtenC.addAndGet(1);
+                        writtenC.incrementAndGet();
                     }
                     break;
+                    
             }       
         //System.out.println("Inserted records into the table...");
         }catch(SQLException se){
@@ -172,6 +176,10 @@ public class WriteParsedToDataBase implements Runnable {
         return objectTimestamp;
     }
     private void printProgress(){
+        AtomicLong written = new AtomicLong(0);
+        written.addAndGet(writtenA.get());
+        written.addAndGet(writtenB.get());
+        written.addAndGet(writtenC.get());
         if (((writtenA.get()%10000) == 0)||((writtenB.get()%10000) == 0)||((writtenC.get()%10000) == 0)){
             System.out.println("Записано объектов типа JTypeA: " + writtenA.get());
             System.out.println("Записано объектов типа JTypeB: " + writtenB.get());

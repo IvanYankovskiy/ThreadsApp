@@ -146,9 +146,9 @@ public class JType {
         Random r = new Random();
         int code = r.nextInt(25);
         if(isUpperCase)
-            ch = (char)((int)code + 97);
-        else
             ch = (char)((int)code + 65);
+        else
+            ch = (char)((int)code + 97);
         return ch;
     }
 }
