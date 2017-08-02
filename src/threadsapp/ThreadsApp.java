@@ -6,6 +6,8 @@
 package threadsapp;
 //import org.json.simple.*;
 import com.alibaba.fastjson.JSON;
+import com.mchange.v2.c3p0.*;
+import java.beans.PropertyVetoException;
 import threadsapp.GenerateAndWriteTask.*;
 import threadsapp.JType;
 import java.util.*;
@@ -38,10 +40,17 @@ import threadsapp.ReadFromDatabaseAndWriteToFileTask.*;
 public class ThreadsApp {
 static final String FILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тестовое задание\\file.json";
 static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тестовое задание\\outputfile.json";
+//Задать имя JDBC драйвера и указать базу данных
+static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";  
+static final String DB_URL = "jdbc:mysql://localhost/Devices";
+//Задать данные авторизации в БД 
+static final String USER = "root";
+static final String PASS = "12345";
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException{
+        ComboPooledDataSource cpds = new ComboPooledDataSource();
         File file = new File(FILENAME);
         File outputfile = new File(OUTPUTFILENAME);
         
@@ -58,7 +67,7 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
           System.out.println("Файл объектов из БД уже существует.");
         
         //создать пул потоков задачи а) и запустить его
-        executeTaskAPool(FILENAME);
+        //executeTaskAPool(FILENAME);
         //используя Stream API подсчитаем количество сгенерированных объектов
         long generatedObjectsCounter = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8).count();
         //вывести количество количество объектов в файле
@@ -66,15 +75,15 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
 
         
         //создать пул потоков задач б)-в) и запустить его
-        executeTaskBPool(FILENAME);
+        //executeTaskBPool(FILENAME);
         
         
-        /*executeTaskGPool(OUTPUTFILENAME, toDBJAQueue);
+        executeTaskGPool(OUTPUTFILENAME);
         
         generatedObjectsCounter = Files.lines(Paths.get(OUTPUTFILENAME), StandardCharsets.UTF_8).count();
         //вывести количество количество объектов в файле
         System.out.println("Файл " + OUTPUTFILENAME + " содержит " + generatedObjectsCounter + " объектов\n");
-        */
+       /* */
     }
     public static void printSymbols(){
         //System.out.println((int)'A'); 
@@ -174,20 +183,33 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
         }
    }
     public static void executeTaskGPool(String OUTPUTFILENAME) throws IOException, ExecutionException, InterruptedException{
+        ComboPooledDataSource cpds = new ComboPooledDataSource();
+        configureConnectionPool(cpds);
         //список задач
         List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC"); 
-        //LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>();
         //Список для объектов CompleteFuture
-        List<Future<String>> futures = new ArrayList<Future<String>>();
+        List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         //Списко для строк резульатов выполнения потоков
         List<String> results = new ArrayList<String>();
         //Пул потоков для обработки задачи а)
-        ExecutorService task_G_Executor = Executors.newFixedThreadPool(2);
+        ExecutorService task_G_Executor = Executors.newFixedThreadPool(tasks.size()*2);
+        Connection conn = null;
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            conn = DriverManager.getConnection(DB_URL, USER, PASS);
+            conn.setAutoCommit(false);
+        } catch (ClassNotFoundException ex) {
+            Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
         try{
             for(String task : tasks){
-                LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(50000);
-                futures.add((Future<String>) task_G_Executor.submit(new ReadDataAndGenerateJSON(task, jsonFromDBQueue)));
-                futures.add((Future<String>) task_G_Executor.submit(new pollAndWriteToFile(OUTPUTFILENAME, jsonFromDBQueue, task))); 
+                AtomicBoolean isReadingFromDBisDone = new AtomicBoolean(false);
+                LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(1000);
+                CompletableFuture.runAsync(new ReadDataAndGenerateJSON(task, jsonFromDBQueue, isReadingFromDBisDone, cpds),task_G_Executor);
+                CompletableFuture.runAsync(new pollAndWriteToFile(OUTPUTFILENAME, jsonFromDBQueue, task, isReadingFromDBisDone),task_G_Executor);
             }
             
             /*for(Future<String> ftr : futures){
@@ -204,5 +226,20 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
             System.out.println(result);
         }
    }
+   public static void configureConnectionPool(ComboPooledDataSource cpds){
+        try {
+            cpds.setDriverClass(JDBC_DRIVER); //loads the jdbc driver            
+        } catch (PropertyVetoException ex) {
+            Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        cpds.setJdbcUrl( DB_URL );
+        cpds.setUser(USER);                                  
+        cpds.setPassword(PASS);                                  
+
+        // the settings below are optional -- c3p0 can work with defaults
+        cpds.setMinPoolSize(1);                                     
+        cpds.setAcquireIncrement(5);
+        cpds.setMaxPoolSize(20);
+    }
 
 }

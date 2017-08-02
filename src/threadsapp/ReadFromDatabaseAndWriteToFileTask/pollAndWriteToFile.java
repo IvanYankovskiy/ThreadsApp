@@ -12,6 +12,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -27,35 +29,38 @@ import threadsapp.ThreadsApp;
  *
  * @author Ivan
  */
-public class pollAndWriteToFile implements Callable<String> {
+public class pollAndWriteToFile implements Runnable {
     private final String OUTPUTFILENAME;
     private final Lock fileWriterLock = new ReentrantLock();
     private final LinkedBlockingQueue<String> inputQueue;
     private final String jsonType;
-    public pollAndWriteToFile(String FILENAME, LinkedBlockingQueue<String> inputQueue, String jsonType){
+    AtomicBoolean isReadingFromDBisDone;
+    AtomicLong countWritten;
+    public pollAndWriteToFile(String FILENAME, LinkedBlockingQueue<String> inputQueue, String jsonType, AtomicBoolean isReadingFromDBisDone){
         this.OUTPUTFILENAME = FILENAME;
         this.inputQueue = inputQueue;
         this.jsonType = jsonType;
+        this.isReadingFromDBisDone = isReadingFromDBisDone;
+        this.countWritten = new AtomicLong(0);
 
     }
 
     @Override
-    public String call() throws Exception {
-        
-
-                inputQueue.stream().forEach(line -> { 
-                    try{
-                        inputQueue.poll();
-                        //fileWriterLock.lock();
-                        writeJSON_objectToFile(line ,OUTPUTFILENAME);
+    public void run() {
+        while(!((isReadingFromDBisDone.get() ^ inputQueue.isEmpty())& isReadingFromDBisDone.get())){
+            String jsonString = inputQueue.poll();
+            fileWriterLock.lock();
+            try {
+                writeJSON_objectToFile(jsonString ,OUTPUTFILENAME);
+            }catch(Exception ex){
+                System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage() + "\n");
+                Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
+            } finally {
+                fileWriterLock.unlock();
+            }
                         
-                        //fileWriterLock.unlock();
-                    }catch(Exception ex){
-                        System.out.println(" Вы брос исключения в " + this.toString() + " " + ex.getMessage() + "\n");
-                        Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-               }); 
-        return "Объекты типа " + jsonType + " записаны";
+        }
+        System.out.println("Записано " + countWritten.get() + " объектов  типа " + jsonType);
     }
     
     public void writeJSON_objectToFile(String object, String FILENAME){
@@ -64,6 +69,7 @@ public class pollAndWriteToFile implements Callable<String> {
             writer.write(JSON.toJSONString(object) + "\n");
             writer.flush();
             writer.close();
+            countWritten.incrementAndGet();
         } catch (IOException ex) {
             Logger.getLogger(ThreadsApp.class.getName())
                     .log(Level.SEVERE, null, ex);
