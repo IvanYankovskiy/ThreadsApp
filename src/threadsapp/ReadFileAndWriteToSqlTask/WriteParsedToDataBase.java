@@ -4,6 +4,7 @@
  * and open the template in the editor.
  */
 package threadsapp.ReadFileAndWriteToSqlTask;
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 import java.sql.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,7 +33,7 @@ public class WriteParsedToDataBase implements Runnable {
     AtomicLong writtenC;
     AtomicBoolean validationIsDone;
     private LinkedBlockingQueue<JType> objectQueue;
-    private CyclicBarrier BARRIER;
+    ComboPooledDataSource cpds;
     private final String sqlJTypeA = "INSERT INTO JTypeA " + 
                         "(protocol_version, type, device_id, report_time, event_name) " +
                         "VALUES(?,?,?,?,?);";
@@ -49,12 +50,13 @@ public class WriteParsedToDataBase implements Runnable {
     final String USER = "root";
     final String PASS = "12345";
     
-    public WriteParsedToDataBase (LinkedBlockingQueue<JType> objectQueue, AtomicBoolean validationIsDone){
+    public WriteParsedToDataBase (LinkedBlockingQueue<JType> objectQueue, AtomicBoolean validationIsDone, ComboPooledDataSource cpds){
         this.objectQueue = objectQueue;
         this.validationIsDone = validationIsDone;
         writtenA = new AtomicLong(0);
         writtenB = new AtomicLong(0);
         writtenC = new AtomicLong(0);
+        this.cpds = cpds;
     }
     
     @Override
@@ -95,15 +97,7 @@ public class WriteParsedToDataBase implements Runnable {
         Connection conn = null;
         PreparedStatement stmt = null;
         try{
-            //ШАГ 2: решистрация JDBC драйвера
-            Class.forName("com.mysql.jdbc.Driver");
-            //ШАГ 3: Открыть соединение
-            //System.out.println("Connecting to a selected database...");
-            conn = DriverManager.getConnection(DB_URL, USER, PASS);
-            //System.out.println("Connected database successfully...");
-            //ШАГ 4: Составить запрос
-            //System.out.println("Inserting records into the table...");
-            //получить Report_time объекта
+            conn = cpds.getConnection();
             Timestamp objectTimestamp = convertToTimeStamp(obj.getReport_time());
             //Идентифицировать тип объекта и получить уникальные для типа поля для запроса
             switch(obj.getType()){

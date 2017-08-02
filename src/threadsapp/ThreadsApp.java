@@ -75,10 +75,10 @@ static final String PASS = "12345";
 
         
         //создать пул потоков задач б)-в) и запустить его
-        //executeTaskBPool(FILENAME);
+        executeTaskBPool(FILENAME);
         
         
-        executeTaskGPool(OUTPUTFILENAME);
+        //executeTaskGPool(OUTPUTFILENAME);
         
         generatedObjectsCounter = Files.lines(Paths.get(OUTPUTFILENAME), StandardCharsets.UTF_8).count();
         //вывести количество количество объектов в файле
@@ -96,43 +96,7 @@ static final String PASS = "12345";
             //A-Z в int 65-90
         }
     }
-    public static void writeJSON_objectToFile(JType object){
-        try (FileWriter writer = new FileWriter(FILENAME, true)){
-            //writer.append(JSON.toJSONString(object));
-            writer.write(JSON.toJSONString(object) + "\n");
-            writer.flush();
-            writer.close();
-        } catch (IOException ex) {
-            Logger.getLogger(ThreadsApp.class.getName())
-                    .log(Level.SEVERE, null, ex);
-        }
-    }
-   public static void testGenerateAllTypesObjects(){
-        for(int i = 0; i<10; i++){
-            JTypeA objA = new JTypeA();
-            writeJSON_objectToFile(objA);
-            JTypeB objB = new JTypeB();
-            writeJSON_objectToFile(objB);
-            JTypeC objC = new JTypeC();
-            writeJSON_objectToFile(objC);
-            System.out.println("Сгенерированные объекты, итерация " + i + ":");
-            System.out.println();
-            System.out.println(objA.toString());
-            System.out.println();
-            System.out.println(objB.toString());
-            System.out.println();
-            System.out.println(objC.toString());
-            System.out.println();
-            System.out.println("Конвертированные в JSON-строку объекты, итерация " + i + ":");
-            System.out.println();
-            System.out.println(JSON.toJSONString(objA));
-            System.out.println();
-            System.out.println(JSON.toJSONString(objB));
-            System.out.println();
-            System.out.println(JSON.toJSONString(objC));
-            System.out.println();
-        }
-   }
+
    public static void executeTaskAPool(String FILENAME) throws IOException, ExecutionException, InterruptedException{
         //Список для объектов CompleteFuture
         List<Future<String>> futures = new ArrayList<Future<String>>();
@@ -155,6 +119,8 @@ static final String PASS = "12345";
         }
    }
     public static void executeTaskBPool(String FILENAME) throws IOException, ExecutionException, InterruptedException{
+        ComboPooledDataSource cpds = new ComboPooledDataSource();
+        configureConnectionPool(cpds);
         AtomicBoolean readFileIsDone = new AtomicBoolean(false);
         AtomicBoolean validationIsDone = new AtomicBoolean(false);
         LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(10000);
@@ -168,7 +134,7 @@ static final String PASS = "12345";
         try{
             CompletableFuture.runAsync(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone), task_B_Executor);
             CompletableFuture.runAsync(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone), task_B_Executor);
-            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone), task_B_Executor);
+            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
             
         }catch(Exception ex) {
             System.out.println(" Выброс исключения " + ex.getMessage()+"\n");
