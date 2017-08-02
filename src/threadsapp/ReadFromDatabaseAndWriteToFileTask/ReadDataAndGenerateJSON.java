@@ -35,12 +35,10 @@ public class ReadDataAndGenerateJSON implements Callable<String> {
     private final LinkedBlockingQueue<String> outputQueue;
     private final Lock lock = new ReentrantLock();
     private final String jsonType;
-    private final CountDownLatch countDownLatch;
-    public ReadDataAndGenerateJSON(String jsonType, LinkedBlockingQueue<String> outputQueue, CountDownLatch countDownLatch){
+    public ReadDataAndGenerateJSON(String jsonType, LinkedBlockingQueue<String> outputQueue){
         sql = "SELECT* FROM " + jsonType + ";";
         this.outputQueue = outputQueue;
         this.jsonType = jsonType;
-        this.countDownLatch = countDownLatch;
     }
 
     @Override
@@ -49,7 +47,6 @@ public class ReadDataAndGenerateJSON implements Callable<String> {
         Statement stmt = null;
         lock.lock();
         try{
-            countDownLatch.countDown();
             Class.forName("com.mysql.jdbc.Driver");
             conn = DriverManager.getConnection(DB_URL, USER, PASS);
             conn.setAutoCommit(false);

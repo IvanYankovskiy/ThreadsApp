@@ -64,13 +64,12 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
         //вывести количество количество объектов в файле
         System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " объектов");
 
-        LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(10000);
-        LinkedBlockingQueue<JType> queueParsedObjects = new LinkedBlockingQueue<JType>(5000);
+        
         //создать пул потоков задач б)-в) и запустить его
-        executeTaskBPool(FILENAME, queueFromFile, queueParsedObjects);
-        /*
-        LinkedBlockingQueue<String> toDBJAQueue = new LinkedBlockingQueue<String>();
-        executeTaskGPool(OUTPUTFILENAME, toDBJAQueue);
+        executeTaskBPool(FILENAME);
+        
+        
+        /*executeTaskGPool(OUTPUTFILENAME, toDBJAQueue);
         
         generatedObjectsCounter = Files.lines(Paths.get(OUTPUTFILENAME), StandardCharsets.UTF_8).count();
         //вывести количество количество объектов в файле
@@ -146,9 +145,11 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
             System.out.println(result);
         }
    }
-    public static void executeTaskBPool(String FILENAME,LinkedBlockingQueue<String> inputQueue, LinkedBlockingQueue<JType> outputQueue) throws IOException, ExecutionException, InterruptedException{
+    public static void executeTaskBPool(String FILENAME) throws IOException, ExecutionException, InterruptedException{
         AtomicBoolean readFileIsDone = new AtomicBoolean(false);
         AtomicBoolean validationIsDone = new AtomicBoolean(false);
+        LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(10000);
+        LinkedBlockingQueue<JType> queueParsedObjects = new LinkedBlockingQueue<JType>(5000);
         //Список для объектов CompleteFuture
         List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         //Списко для строк резульатов выполнения потоков
@@ -156,9 +157,9 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
         //Пул потоков для обработки задачи а)
         ExecutorService task_B_Executor = Executors.newFixedThreadPool(3);
         try{
-            CompletableFuture.runAsync(new ReadFromFile(FILENAME, inputQueue, readFileIsDone), task_B_Executor);
-            CompletableFuture.runAsync(new RecognizeAndValidate(inputQueue, outputQueue, readFileIsDone, validationIsDone), task_B_Executor);
-            CompletableFuture.runAsync(new WriteParsedToDataBase(outputQueue, validationIsDone), task_B_Executor);
+            CompletableFuture.runAsync(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone), task_B_Executor);
+            CompletableFuture.runAsync(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone), task_B_Executor);
+            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone), task_B_Executor);
             
         }catch(Exception ex) {
             System.out.println(" Выброс исключения " + ex.getMessage()+"\n");
@@ -172,8 +173,10 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
             System.out.println("Пул потоков Б завершил работу");           
         }
    }
-    public static void executeTaskGPool(String OUTPUTFILENAME, LinkedBlockingQueue<String> toDBJAQueue) throws IOException, ExecutionException, InterruptedException{
-        CountDownLatch countDownLatch = new CountDownLatch(2);
+    public static void executeTaskGPool(String OUTPUTFILENAME) throws IOException, ExecutionException, InterruptedException{
+        //список задач
+        List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC"); 
+        //LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>();
         //Список для объектов CompleteFuture
         List<Future<String>> futures = new ArrayList<Future<String>>();
         //Списко для строк резульатов выполнения потоков
@@ -181,11 +184,15 @@ static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тес
         //Пул потоков для обработки задачи а)
         ExecutorService task_G_Executor = Executors.newFixedThreadPool(2);
         try{
-            futures.add((Future<String>) task_G_Executor.submit(new ReadDataAndGenerateJSON("JTypeA", toDBJAQueue,countDownLatch)));
-            futures.add((Future<String>) task_G_Executor.submit(new pollAndWriteToFile(OUTPUTFILENAME,toDBJAQueue,"JTypeA",countDownLatch)));
-            for(Future<String> ftr : futures){
-                results.add(ftr.get());
+            for(String task : tasks){
+                LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(50000);
+                futures.add((Future<String>) task_G_Executor.submit(new ReadDataAndGenerateJSON(task, jsonFromDBQueue)));
+                futures.add((Future<String>) task_G_Executor.submit(new pollAndWriteToFile(OUTPUTFILENAME, jsonFromDBQueue, task))); 
             }
+            
+            /*for(Future<String> ftr : futures){
+                results.add(ftr.get());
+            }*/
         }catch(Exception ex) {
             System.out.println(" Вы брос исключения " + ex.getMessage()+"\n");
             Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);

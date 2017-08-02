@@ -28,16 +28,15 @@ import threadsapp.ThreadsApp;
  * @author Ivan
  */
 public class pollAndWriteToFile implements Callable<String> {
-    private final CountDownLatch start;
     private final String OUTPUTFILENAME;
     private final Lock fileWriterLock = new ReentrantLock();
     private final LinkedBlockingQueue<String> inputQueue;
     private final String jsonType;
-    public pollAndWriteToFile(String FILENAME, LinkedBlockingQueue<String> inputQueue, String jsonType, CountDownLatch countDownLatch){
+    public pollAndWriteToFile(String FILENAME, LinkedBlockingQueue<String> inputQueue, String jsonType){
         this.OUTPUTFILENAME = FILENAME;
         this.inputQueue = inputQueue;
         this.jsonType = jsonType;
-        this.start = countDownLatch;
+
     }
 
     @Override

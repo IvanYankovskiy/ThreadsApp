@@ -75,7 +75,15 @@ public class WriteParsedToDataBase implements Runnable {
                 printProgress();
             }
         }
-        System.out.println("Поток обработки " + this.toString() + " завершил свою работу ");
+        System.out.println("Поток записи в БД " + this.toString() + " завершил свою работу ");
+        AtomicLong written = new AtomicLong(0);
+        written.addAndGet(writtenA.get());
+        written.addAndGet(writtenB.get());
+        written.addAndGet(writtenC.get());
+        System.out.println("Записано объектов типа JTypeA: " + writtenA.get());
+        System.out.println("Записано объектов типа JTypeB: " + writtenB.get());
+        System.out.println("Записано объектов типа JTypeC: " + writtenC.get());
+        System.out.println("Всего записано объектов: " + written.get());
         printProgress();
     }
     private void identifyAndWrite(JType obj) throws InterruptedException{
@@ -180,7 +188,7 @@ public class WriteParsedToDataBase implements Runnable {
         written.addAndGet(writtenA.get());
         written.addAndGet(writtenB.get());
         written.addAndGet(writtenC.get());
-        if (((writtenA.get()%10000) == 0)||((writtenB.get()%10000) == 0)||((writtenC.get()%10000) == 0)){
+        if (((writtenA.get()%1000) == 0)){
             System.out.println("Записано объектов типа JTypeA: " + writtenA.get());
             System.out.println("Записано объектов типа JTypeB: " + writtenB.get());
             System.out.println("Записано объектов типа JTypeC: " + writtenC.get());
