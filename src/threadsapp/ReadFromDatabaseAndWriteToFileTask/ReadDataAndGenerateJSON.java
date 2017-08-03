@@ -32,6 +32,7 @@ public class ReadDataAndGenerateJSON implements Runnable {
     private final Lock lock = new ReentrantLock();
     private final String jsonType;
     private final AtomicBoolean isReadingFromDBisDone;
+    private AtomicLong offset;
     private final ComboPooledDataSource cpds;
     private final int pagingQueueStep = 50;
     public ReadDataAndGenerateJSON(String jsonType, LinkedBlockingQueue<String> outputQueue, AtomicBoolean isReadingFromDBisDone, ComboPooledDataSource cpds){
@@ -39,32 +40,37 @@ public class ReadDataAndGenerateJSON implements Runnable {
         this.jsonType = jsonType;
         this.isReadingFromDBisDone = isReadingFromDBisDone;
         this.cpds = cpds;
+        this.offset = new AtomicLong(0);
     }
 
     @Override
     public void run() {
         boolean isDone = false;
+        
+        //Timestamp nextReportTime = getFirstReportTime();
         while(true & !isDone){
-            lock.lock(); 
-            Timestamp nextReportTime = getFirstReportTime();
+            lock.lock();
             PreparedStatement stmt = null;
             Connection conn = null; 
-              
             try{
-                sql = "SELECT* FROM " + jsonType + " WHERE report_time < ? ORDER BY report_time DESC LIMIT ?;";
+                //sql = "SELECT* FROM " + jsonType + " WHERE report_time <= ? ORDER BY report_time DESC LIMIT ?;";
+                sql = "SELECT* FROM " + jsonType + " ORDER BY report_time DESC LIMIT ? OFFSET ?;";
                 conn = cpds.getConnection();
                 stmt = conn.prepareStatement(sql);
-                stmt.setTimestamp(1, nextReportTime);
-                stmt.setInt(2, pagingQueueStep);
+                //stmt.setTimestamp(1, nextReportTime);
+                stmt.setInt(1, pagingQueueStep);
+                stmt.setLong(2, offset.get());
                 try (ResultSet rs = stmt.executeQuery()) {
-                    if (!rs.next())
+                    if (!rs.next()&& rs.wasNull())
                             isDone = true;
                     else
-                        rs.beforeFirst();
+                        rs.previous();
                     while (rs.next()) {
-                        JType jTypeObj = null;
+                        JType jTypeObj;
+                        //nextReportTime = rs.getTimestamp("report_time");
                         jTypeObj = createJsonABtypeString(jsonType,rs);
-                        outputQueue.offer(JSON.toJSONString(jTypeObj));   
+                        String jsonString = JSON.toJSONString(jTypeObj);
+                        outputQueue.put(jsonString);   
                     }
                     rs.close();
                 }
@@ -90,13 +96,14 @@ public class ReadDataAndGenerateJSON implements Runnable {
                     se.printStackTrace();
                 }//end finally try
             }//end try
+            offset.addAndGet(pagingQueueStep);
         }
         isReadingFromDBisDone.set(true); 
         System.out.println("Поток чтения объектов типа " + jsonType + " закончил работу");
     }
     private JType createJsonABtypeString(String JType, ResultSet rs) throws SQLException{
         
-        JType result = null;
+        JType result = new JType();
         try{
             double protocol_version  = rs.getDouble("protocol_version");
             String type = rs.getString("type");
@@ -117,14 +124,17 @@ public class ReadDataAndGenerateJSON implements Runnable {
                 ArrayList <JTypeTime> reports = new ArrayList <JTypeTime>();
                 boolean createAndMoveOn = true;
                 do {
-                    if((device_id.equals(rs.getString("type")))
-                            &(report_time.equals(timestampToInstant(rs.getTimestamp("report_time"))))
-                            &(event_name.equals(rs.getString("event_name")))){
+                    String di = rs.getString("device_id");
+                    String en = rs.getString("event_name");
+                    if((device_id.equals(di))
+                            &(event_name.equals(en))){
                         Instant temp_time = timestampToInstant(rs.getTimestamp("report_time"));
                         JTypeTime time = new JTypeTime(temp_time);
                         reports.add(time);
-                        rs.next();
-                        createAndMoveOn = false;
+                        if(rs.next())
+                            createAndMoveOn = false;
+                        else
+                            createAndMoveOn = true;
                     }else{
                         createAndMoveOn = true;
                         rs.previous(); 
@@ -152,16 +162,14 @@ public class ReadDataAndGenerateJSON implements Runnable {
         Statement stmt = null;
         Connection conn = null;
         sql = "SELECT* FROM " + jsonType + " ORDER BY report_time DESC LIMIT 1;";
-        Timestamp currentReport_time = null;
+        Timestamp currentReport_time = Timestamp.from(Instant.MIN);
         try {
             conn = cpds.getConnection();
             stmt= conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql); 
                 while (rs.next()) {
                     currentReport_time = rs.getTimestamp("report_time");
-                    JType jTypeObj = null;
-                    jTypeObj = createJsonABtypeString(jsonType,rs);
-                    
+                    JType jTypeObj = createJsonABtypeString(jsonType,rs);
                     outputQueue.put(JSON.toJSONString(jTypeObj));
                 }
                 rs.close();

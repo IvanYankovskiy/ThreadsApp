@@ -48,17 +48,16 @@ public class pollAndWriteToFile implements Runnable {
     @Override
     public void run() {
         while(!((isReadingFromDBisDone.get() ^ inputQueue.isEmpty())& isReadingFromDBisDone.get())){
-            String jsonString = inputQueue.poll();
+            
             fileWriterLock.lock();
             try {
-                writeJSON_objectToFile(jsonString ,OUTPUTFILENAME);
+                writeJSON_objectToFile(inputQueue.poll(), OUTPUTFILENAME);
             }catch(Exception ex){
                 System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage() + "\n");
                 Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
             } finally {
                 fileWriterLock.unlock();
-            }
-                        
+            }             
         }
         System.out.println("Записано " + countWritten.get() + " объектов  типа " + jsonType);
     }

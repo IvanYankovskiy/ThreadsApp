@@ -5,6 +5,7 @@
  */
 package threadsapp;
 //import org.json.simple.*;
+import NamedQueues.StringTypeQueue;
 import com.alibaba.fastjson.JSON;
 import com.mchange.v2.c3p0.*;
 import java.beans.PropertyVetoException;
@@ -46,25 +47,24 @@ static final String DB_URL = "jdbc:mysql://localhost/Devices";
 //Задать данные авторизации в БД 
 static final String USER = "root";
 static final String PASS = "12345";
+static final List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC");
+static final long N = 10000;
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException{
         ComboPooledDataSource cpds = new ComboPooledDataSource();
         File file = new File(FILENAME);
+        createFile(file);
+        
         File outputfile = new File(OUTPUTFILENAME);
+        createFile(outputfile);
+
         
-        //Созадть входной файл
-        if (file.createNewFile())
-          System.out.println("Файл создан!");
-        else
-          System.out.println("Файл уже существует.");
-        
-        //Созадть входной файл
-        if (outputfile.createNewFile())
-          System.out.println("Файл объектов из БД создан!");
-        else
-          System.out.println("Файл объектов из БД уже существует.");
+        ExecutorService task_A_Executor = Executors.newFixedThreadPool(3);
+        for (Callable<Boolean> task : createTasksA(FILENAME) ){
+           task_A_Executor.submit(task); 
+        }
         
         //создать пул потоков задачи а) и запустить его
         //executeTaskAPool(FILENAME);
@@ -75,48 +75,26 @@ static final String PASS = "12345";
 
         
         //создать пул потоков задач б)-в) и запустить его
-        executeTaskBPool(FILENAME);
+        //executeTaskBPool(FILENAME);
         
         
-        //executeTaskGPool(OUTPUTFILENAME);
+        //executeTaskGPool(OUTPUTFILENAME, tasks);
         
         generatedObjectsCounter = Files.lines(Paths.get(OUTPUTFILENAME), StandardCharsets.UTF_8).count();
         //вывести количество количество объектов в файле
         System.out.println("Файл " + OUTPUTFILENAME + " содержит " + generatedObjectsCounter + " объектов\n");
        /* */
     }
-    public static void printSymbols(){
-        //System.out.println((int)'A'); 
-        //System.out.println(); 
-        for(int i = 65; i<=90; i++){
-            char o = (char)i;
-            System.out.println((char)o);
-            //0-9 в int 0-9
-            //a-z в int 97-122
-            //A-Z в int 65-90
-        }
-    }
 
-   public static void executeTaskAPool(String FILENAME) throws IOException, ExecutionException, InterruptedException{
+   public static List<Callable<Boolean>> createTasksA(String FILENAME) throws IOException, ExecutionException, InterruptedException{
         //Список для объектов CompleteFuture
-        List<Future<String>> futures = new ArrayList<Future<String>>();
+        List<Callable<Boolean>> taskListA = new ArrayList<Callable<Boolean>>();
+        //List<Future<Boolean>> futures = new ArrayList<Future<Boolean>>();
         //Списко для строк резульатов выполнения потоков
-        List<String> results = new ArrayList<String>();
-        //Пул потоков для обработки задачи а)
-        ExecutorService task_A_Executor = Executors.newFixedThreadPool(3);
-        try{
-            futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeA(FILENAME)));
-            futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeB(FILENAME)));
-            futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeC(FILENAME)));
-            for(Future<String> ftr : futures){
-                results.add(ftr.get());
-            }
-        }finally{
-            task_A_Executor.shutdown();
-        }
-        for(String result : results){
-            System.out.println(result);
-        }
+        //List<Boolean> results = new ArrayList<Boolean>();
+        for(String task : tasks)
+            taskListA.add((Callable<Boolean>) new GenerateAndWriteType(FILENAME, N , task));
+        return taskListA;
    }
     public static void executeTaskBPool(String FILENAME) throws IOException, ExecutionException, InterruptedException{
         ComboPooledDataSource cpds = new ComboPooledDataSource();
@@ -130,12 +108,16 @@ static final String PASS = "12345";
         //Списко для строк резульатов выполнения потоков
         List<String> results = new ArrayList<String>();
         //Пул потоков для обработки задачи а)
-        ExecutorService task_B_Executor = Executors.newFixedThreadPool(3);
+        ExecutorService task_B_Executor = Executors.newFixedThreadPool(5);
+        /*List<StringTypeQueue> sortedStringQueues = new ArrayList<StringTypeQueue>();
+        List<StringTypeQueue> sortedJTypesQueues = new ArrayList<StringTypeQueue>();*/
         try{
+
             CompletableFuture.runAsync(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone), task_B_Executor);
             CompletableFuture.runAsync(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone), task_B_Executor);
             CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
-            
+            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
+            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
         }catch(Exception ex) {
             System.out.println(" Выброс исключения " + ex.getMessage()+"\n");
             Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
@@ -148,32 +130,21 @@ static final String PASS = "12345";
             System.out.println("Пул потоков Б завершил работу");           
         }
    }
-    public static void executeTaskGPool(String OUTPUTFILENAME) throws IOException, ExecutionException, InterruptedException{
+    public static void executeTaskGPool(String OUTPUTFILENAME, List<String> tasks) throws IOException, ExecutionException, InterruptedException{
         ComboPooledDataSource cpds = new ComboPooledDataSource();
         configureConnectionPool(cpds);
-        //список задач
-        List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC"); 
+        
         //Список для объектов CompleteFuture
         List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         //Списко для строк резульатов выполнения потоков
         List<String> results = new ArrayList<String>();
         //Пул потоков для обработки задачи а)
         ExecutorService task_G_Executor = Executors.newFixedThreadPool(tasks.size()*2);
-        Connection conn = null;
-        try {
-            Class.forName("com.mysql.jdbc.Driver");
-            conn = DriverManager.getConnection(DB_URL, USER, PASS);
-            conn.setAutoCommit(false);
-        } catch (ClassNotFoundException ex) {
-            Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SQLException ex) {
-            Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
-        }
         
         try{
             for(String task : tasks){
                 AtomicBoolean isReadingFromDBisDone = new AtomicBoolean(false);
-                LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(1000);
+                LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(10000);
                 CompletableFuture.runAsync(new ReadDataAndGenerateJSON(task, jsonFromDBQueue, isReadingFromDBisDone, cpds),task_G_Executor);
                 CompletableFuture.runAsync(new pollAndWriteToFile(OUTPUTFILENAME, jsonFromDBQueue, task, isReadingFromDBisDone),task_G_Executor);
             }
@@ -207,5 +178,16 @@ static final String PASS = "12345";
         cpds.setAcquireIncrement(5);
         cpds.setMaxPoolSize(20);
     }
+    public static void createFile(File file){
+        try {
+            //Созадть файл
+            if (file.createNewFile())
+                System.out.println("Файл" + file.getAbsolutePath() + " создан");
+            else
+                System.out.println("Файл" + file.getAbsolutePath() + " уже существует.");
+        } catch (IOException ex) {
+            Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
+    }
 }
