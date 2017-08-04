@@ -32,6 +32,7 @@ public class WriteParsedToDataBase implements Runnable {
     AtomicLong writtenB;
     AtomicLong writtenC;
     AtomicBoolean validationIsDone;
+    ReentrantLock lock; 
     private LinkedBlockingQueue<JType> objectQueue;
     ComboPooledDataSource cpds;
     private final String sqlJTypeA = "INSERT INTO JTypeA " + 
@@ -57,6 +58,7 @@ public class WriteParsedToDataBase implements Runnable {
         writtenB = new AtomicLong(0);
         writtenC = new AtomicLong(0);
         this.cpds = cpds;
+        lock = new ReentrantLock();
     }
     
     @Override
@@ -73,25 +75,22 @@ public class WriteParsedToDataBase implements Runnable {
                 System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage()+"\n");
                 Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
             }
-            finally{
-                printProgress();
-            }
         }
+        lock.lock();
         System.out.println("Поток записи в БД " + this.toString() + " завершил свою работу ");
         AtomicLong written = new AtomicLong(0);
         written.addAndGet(writtenA.get());
         written.addAndGet(writtenB.get());
         written.addAndGet(writtenC.get());
-        System.out.println("Записано объектов типа JTypeA: " + writtenA.get());
-        System.out.println("Записано объектов типа JTypeB: " + writtenB.get());
-        System.out.println("Записано объектов типа JTypeC: " + writtenC.get());
-        System.out.println("Всего записано объектов: " + written.get());
-        printProgress();
+        System.out.println("Потоком " + this.toString() + " записано объектов типа JTypeA: " + writtenA.get());
+        System.out.println("Потоком " + this.toString() + " записано объектов типа JTypeB: " + writtenB.get());
+        System.out.println("Потоком " + this.toString() + " записано объектов типа JTypeC: " + writtenC.get());
+        System.out.println("Всего потоком " + this.toString() + "записано объектов: " + written.get());
+        lock.unlock();
     }
     private void identifyAndWrite(JType obj) throws InterruptedException{
         JType currentObject = objectQueue.poll(5, TimeUnit.SECONDS);
         jTypes_to_DataBase(currentObject);
-        printProgress();
     }
     private boolean jTypes_to_DataBase(JType obj){
         Connection conn = null;

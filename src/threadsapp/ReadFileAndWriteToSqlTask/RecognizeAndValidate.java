@@ -58,7 +58,7 @@ public class RecognizeAndValidate implements Runnable {
             
         }
         validationIsDone.set(true);
-        System.out.println("Поток обработки " + this.toString() + " завершил свою работу ");
+        System.out.println("Поток парсинга и валидации " + this.toString() + " завершил работу.");
     }
     private JType parseJSON(String obj) throws com.alibaba.fastjson.JSONException {
         JType jTypeObject = new JType();

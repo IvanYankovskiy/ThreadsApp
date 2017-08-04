@@ -18,52 +18,38 @@ import threadsapp.*;
  *
  * @author Ivan
  */
-public class GenerateAndWriteType implements Runnable {
+public class GenerateAndWriteTypeA implements Callable<String> {
     private AtomicLong counter;
     private String FILENAME;
     private Lock fileWriterLock = new ReentrantLock();
-    private final long N;
-    private final String type;
-    public GenerateAndWriteType(String FILENAME, Long N, String type){
+    private final long N;// количество создаваемых объектов
+    public GenerateAndWriteTypeA(String FILENAME, long N){
         this.FILENAME = FILENAME;
+        this.counter = new AtomicLong(0);
         this.N = N;
-        this.type = type;
     }
-    public void run(){
-        
+    public String call()throws Exception{
         System.out.println("Поток задачи а - генерации и записи JSON type A начал работу");
         while(counter.get() < N){
-            
-                JType obj = new JType();
-                switch (type){
-                    case "JTypeA":
-                        obj = new JTypeA();
-                        break;
-                    case "JTypeB":
-                        obj = new JTypeB();
-                        break;    
-                    case "JTypeC":
-                        obj = new JTypeB();
-                        break;  
-                }
-                
-                try{
-                writeJSON_objectToFile(obj, FILENAME); 
-                if ((counter.get())%10000 == 0)
+            JTypeA objA = new JTypeA();
+            fileWriterLock.lock();
+            try{
+                writeJSON_objectToFile(objA, FILENAME);
+                if ((counter.get())%100000 == 0)
                     System.out.println("Поток задачи а - генерации и записи JSON type A сгенерировал " + counter + " записей");
-                counter.incrementAndGet();
-            }finally{
-            
             }
+            finally{
+                fileWriterLock.unlock();
+            }
+            counter.incrementAndGet();
         }
-            
-        String msg = "Поток задачи а - генерации и записи JSON " + type + "закончил работу. Записано "
-                + counter.get() + " объектов";
-        System.out.println(msg); 
+        String result = "Поток задачи а - генерации и записи JSON type A закончил работу. Записано "
+                + counter + " объектов";
+        System.out.println(result);
+        return result;
     }
     
-    public void writeJSON_objectToFile(JType object, String FILENAME){
-        fileWriterLock.lock();
+    public static void writeJSON_objectToFile(JType object, String FILENAME){
         try (FileWriter writer = new FileWriter(FILENAME, true)){
             //writer.append(JSON.toJSONString(object));
             writer.write(JSON.toJSONString(object) + "\n");
@@ -72,10 +58,6 @@ public class GenerateAndWriteType implements Runnable {
         } catch (IOException ex) {
             Logger.getLogger(ThreadsApp.class.getName())
                     .log(Level.SEVERE, null, ex);
-       
-        }finally{
-            fileWriterLock.unlock();
         }
-        
     }
 }

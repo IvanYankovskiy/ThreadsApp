@@ -6,6 +6,9 @@
 package threadsapp;
 //import org.json.simple.*;
 import NamedQueues.StringTypeQueue;
+import PoolWrapper.PoolA;
+import PoolWrapper.PoolB;
+import PoolWrapper.PoolG;
 import com.alibaba.fastjson.JSON;
 import com.mchange.v2.c3p0.*;
 import java.beans.PropertyVetoException;
@@ -48,7 +51,7 @@ static final String DB_URL = "jdbc:mysql://localhost/Devices";
 static final String USER = "root";
 static final String PASS = "12345";
 static final List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC");
-static final long N = 10000;
+static final long N = 1000;
     /**
      * @param args the command line arguments
      */
@@ -59,110 +62,24 @@ static final long N = 10000;
         
         File outputfile = new File(OUTPUTFILENAME);
         createFile(outputfile);
-
         
-        ExecutorService task_A_Executor = Executors.newFixedThreadPool(3);
-        for (Callable<Boolean> task : createTasksA(FILENAME) ){
-           task_A_Executor.submit(task); 
-        }
+        List<String> results = new ArrayList<String>();
         
-        //создать пул потоков задачи а) и запустить его
-        //executeTaskAPool(FILENAME);
-        //используя Stream API подсчитаем количество сгенерированных объектов
-        long generatedObjectsCounter = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8).count();
-        //вывести количество количество объектов в файле
-        System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " объектов");
-
-        
-        //создать пул потоков задач б)-в) и запустить его
-        //executeTaskBPool(FILENAME);
-        
-        
-        //executeTaskGPool(OUTPUTFILENAME, tasks);
-        
-        generatedObjectsCounter = Files.lines(Paths.get(OUTPUTFILENAME), StandardCharsets.UTF_8).count();
-        //вывести количество количество объектов в файле
-        System.out.println("Файл " + OUTPUTFILENAME + " содержит " + generatedObjectsCounter + " объектов\n");
-       /* */
+        ExecutorService appExecutor = Executors.newFixedThreadPool(3);
+        try{
+            //futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteType(FILENAME, N, "JTypeA")));
+            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME,tasks));
+            Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME));
+            Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, N));
+            results.add(taskA_result.get());
+            results.add(taskB_result.get());
+            results.add(taskG_result.get());
+        }finally{
+            appExecutor.shutdown();
+        }     
+        while()
     }
 
-   public static List<Callable<Boolean>> createTasksA(String FILENAME) throws IOException, ExecutionException, InterruptedException{
-        //Список для объектов CompleteFuture
-        List<Callable<Boolean>> taskListA = new ArrayList<Callable<Boolean>>();
-        //List<Future<Boolean>> futures = new ArrayList<Future<Boolean>>();
-        //Списко для строк резульатов выполнения потоков
-        //List<Boolean> results = new ArrayList<Boolean>();
-        for(String task : tasks)
-            taskListA.add((Callable<Boolean>) new GenerateAndWriteType(FILENAME, N , task));
-        return taskListA;
-   }
-    public static void executeTaskBPool(String FILENAME) throws IOException, ExecutionException, InterruptedException{
-        ComboPooledDataSource cpds = new ComboPooledDataSource();
-        configureConnectionPool(cpds);
-        AtomicBoolean readFileIsDone = new AtomicBoolean(false);
-        AtomicBoolean validationIsDone = new AtomicBoolean(false);
-        LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(10000);
-        LinkedBlockingQueue<JType> queueParsedObjects = new LinkedBlockingQueue<JType>(5000);
-        //Список для объектов CompleteFuture
-        List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
-        //Списко для строк резульатов выполнения потоков
-        List<String> results = new ArrayList<String>();
-        //Пул потоков для обработки задачи а)
-        ExecutorService task_B_Executor = Executors.newFixedThreadPool(5);
-        /*List<StringTypeQueue> sortedStringQueues = new ArrayList<StringTypeQueue>();
-        List<StringTypeQueue> sortedJTypesQueues = new ArrayList<StringTypeQueue>();*/
-        try{
-
-            CompletableFuture.runAsync(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone), task_B_Executor);
-            CompletableFuture.runAsync(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone), task_B_Executor);
-            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
-            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
-            CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
-        }catch(Exception ex) {
-            System.out.println(" Выброс исключения " + ex.getMessage()+"\n");
-            Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
-        }finally{
-            task_B_Executor.shutdown();
-            /*for(Future<String> ftr : futures){
-                results.add(ftr.get());
-            }
-            results.forEach((result) -> {System.out.println(result);});*/
-            System.out.println("Пул потоков Б завершил работу");           
-        }
-   }
-    public static void executeTaskGPool(String OUTPUTFILENAME, List<String> tasks) throws IOException, ExecutionException, InterruptedException{
-        ComboPooledDataSource cpds = new ComboPooledDataSource();
-        configureConnectionPool(cpds);
-        
-        //Список для объектов CompleteFuture
-        List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
-        //Списко для строк резульатов выполнения потоков
-        List<String> results = new ArrayList<String>();
-        //Пул потоков для обработки задачи а)
-        ExecutorService task_G_Executor = Executors.newFixedThreadPool(tasks.size()*2);
-        
-        try{
-            for(String task : tasks){
-                AtomicBoolean isReadingFromDBisDone = new AtomicBoolean(false);
-                LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(10000);
-                CompletableFuture.runAsync(new ReadDataAndGenerateJSON(task, jsonFromDBQueue, isReadingFromDBisDone, cpds),task_G_Executor);
-                CompletableFuture.runAsync(new pollAndWriteToFile(OUTPUTFILENAME, jsonFromDBQueue, task, isReadingFromDBisDone),task_G_Executor);
-            }
-            
-            /*for(Future<String> ftr : futures){
-                results.add(ftr.get());
-            }*/
-        }catch(Exception ex) {
-            System.out.println(" Вы брос исключения " + ex.getMessage()+"\n");
-            Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
-        }finally{
-            task_G_Executor.shutdown();
-            System.out.println("Пул потоков Г завершил работу");           
-        }
-        for(String result : results){
-            System.out.println(result);
-        }
-   }
    public static void configureConnectionPool(ComboPooledDataSource cpds){
         try {
             cpds.setDriverClass(JDBC_DRIVER); //loads the jdbc driver            
@@ -189,5 +106,15 @@ static final long N = 10000;
             Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
         }
 
+    }
+    public static void countStringsinFile(String FILENAME){
+        long generatedObjectsCounter = 0;
+        try {
+            generatedObjectsCounter = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8).count();
+        } catch (IOException ex) {
+            Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        //вывести количество количество объектов в файле
+        System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " строк");
     }
 }

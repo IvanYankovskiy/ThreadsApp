@@ -26,7 +26,7 @@ import static threadsapp.ThreadsApp.configureConnectionPool;
  *
  * @author Ivan
  */
-public class PoolB implements Callable<List<String>> {
+public class PoolB implements Callable<String> {
     private final String FILENAME;
     private final ExecutorService task_B_Executor;
     private final ComboPooledDataSource cpds;
@@ -44,22 +44,19 @@ public class PoolB implements Callable<List<String>> {
         validationIsDone = new AtomicBoolean(false);
     }
     @Override
-    public List<String> call(){
+    public String call(){
         configureConnectionPool(cpds);
         LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(queueFromFile_size);
         LinkedBlockingQueue<JType> queueParsedObjects = new LinkedBlockingQueue<JType>(queueParsedObjectse_size);
         //Список для объектов CompleteFuture
         //List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         List<Future<String>> futures = new ArrayList<Future<String>>();
-        //Списко для строк резульатов выполнения потоков
-        List<String> results = new ArrayList<String>();
-        /*List<StringTypeQueue> sortedStringQueues = new ArrayList<StringTypeQueue>();
-        List<StringTypeQueue> sortedJTypesQueues = new ArrayList<StringTypeQueue>();*/
+
         try{
-            futures.add((Future<String>) task_B_Executor.submit(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone)));
-            futures.add((Future<String>) task_B_Executor.submit(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone)));
+            task_B_Executor.submit(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone));
+            task_B_Executor.submit(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone));
             for(int i = 0; i < 3; i++)
-                futures.add((Future<String>) task_B_Executor.submit(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds)));
+                task_B_Executor.submit(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds));
         /*  CompletableFuture.runAsync(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone), task_B_Executor);
             CompletableFuture.runAsync(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone), task_B_Executor);
             CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
@@ -77,6 +74,7 @@ public class PoolB implements Callable<List<String>> {
             results.forEach((result) -> {System.out.println(result);});*/
             System.out.println("Пул потоков Б завершил работу");           
         }
+        return "Пул потоков Б завершил работу";
     }
     
 }

@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ReadFromFile implements Runnable {
     private final AtomicBoolean isDone;
-    private String FILENAME;
+    private final String FILENAME;
     private LinkedBlockingQueue<String> queue;
     public ReadFromFile(String FILENAME,LinkedBlockingQueue<String> queue, AtomicBoolean isDone){
         this.FILENAME = FILENAME;
@@ -57,7 +57,7 @@ public class ReadFromFile implements Runnable {
         isDone.set(true);
         System.out.println();
         System.out.println();
-        System.out.println("Все объекты в файле " + FILENAME + "прочитаны");
+        System.out.println("Все строки в файле " + FILENAME + "прочитаны");
         System.out.println();
         System.out.println();
     }
