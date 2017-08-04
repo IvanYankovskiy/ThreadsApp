@@ -35,7 +35,7 @@ public class pollAndWriteToFile implements Runnable {
     private final LinkedBlockingQueue<String> inputQueue;
     private final String jsonType;
     AtomicBoolean isReadingFromDBisDone;
-    AtomicLong countWritten;
+    private AtomicLong countWritten;
     public pollAndWriteToFile(String FILENAME, LinkedBlockingQueue<String> inputQueue, String jsonType, AtomicBoolean isReadingFromDBisDone){
         this.OUTPUTFILENAME = FILENAME;
         this.inputQueue = inputQueue;
@@ -47,17 +47,22 @@ public class pollAndWriteToFile implements Runnable {
 
     @Override
     public void run() {
-        while(!((isReadingFromDBisDone.get() ^ inputQueue.isEmpty())& isReadingFromDBisDone.get())){
-            
-            fileWriterLock.lock();
+        try {
+            Thread.currentThread().sleep(500);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(pollAndWriteToFile.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        System.out.println(Thread.currentThread().getName()+ " запись считанного из БД в файл");
+        while(checker()){
+            //fileWriterLock.lock();
             try {
                 writeJSON_objectToFile(inputQueue.poll(), OUTPUTFILENAME);
             }catch(Exception ex){
                 System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage() + "\n");
                 Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
-            } finally {
-                fileWriterLock.unlock();
-            }             
+            } /*finally {
+                //fileWriterLock.unlock();
+            }  */           
         }
         System.out.println("Записано " + countWritten.get() + " объектов  типа " + jsonType);
     }
@@ -65,13 +70,24 @@ public class pollAndWriteToFile implements Runnable {
     public void writeJSON_objectToFile(String object, String FILENAME){
         try (FileWriter writer = new FileWriter(FILENAME, true)){
             //writer.append(JSON.toJSONString(object));
-            writer.write(JSON.toJSONString(object) + "\n");
-            writer.flush();
-            writer.close();
-            countWritten.incrementAndGet();
+            if(!object.equals(null)){
+                writer.write(JSON.toJSONString(object) + "\n");
+                writer.flush();
+                writer.close();
+                countWritten.incrementAndGet();
+            }
+                
         } catch (IOException ex) {
             Logger.getLogger(ThreadsApp.class.getName())
                     .log(Level.SEVERE, null, ex);
         }
+    }
+    private boolean checker(){
+        if(!isReadingFromDBisDone.get())
+            return true;
+        else if(isReadingFromDBisDone.get() & inputQueue.isEmpty())
+            return false;
+        else
+            return true;
     }
 }
