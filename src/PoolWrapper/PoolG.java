@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -29,11 +30,12 @@ public class PoolG implements Callable<String>{
     private final List<String> tasks;
     private final String OUTPUTFILENAME;
     private final ComboPooledDataSource cpds;
-    
-    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds ){
+    private CyclicBarrier barrier;
+    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds, CyclicBarrier barrier ){
         this.tasks = tasks;
         this.OUTPUTFILENAME = OUTPUTFILENAME;
         this.cpds = cpds;
+        this.barrier = barrier;
     }
     @Override
     public String call() throws Exception {
@@ -43,8 +45,10 @@ public class PoolG implements Callable<String>{
         List<String> results = new ArrayList<String>();
         //Пул потоков для обработки задачи а)
         ExecutorService task_G_Executor = Executors.newFixedThreadPool(tasks.size()*2);
+        barrier.await();
         
         try{
+            barrier.await();
             for(String task : tasks){
                 AtomicBoolean isReadingFromDBisDone = new AtomicBoolean(false);
                 LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(10000);

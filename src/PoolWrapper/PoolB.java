@@ -8,7 +8,9 @@ package PoolWrapper;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -34,7 +36,8 @@ public class PoolB implements Callable<String> {
     private AtomicBoolean validationIsDone;
     private final int queueFromFile_size;
     private final int queueParsedObjectse_size;
-    public PoolB(String FILENAME, ComboPooledDataSource cpds){
+    private CyclicBarrier barrier;
+    public PoolB(String FILENAME, ComboPooledDataSource cpds, CyclicBarrier barrier){
         queueFromFile_size = 50000;
         queueParsedObjectse_size = 10000;
         this.FILENAME = FILENAME;
@@ -42,15 +45,16 @@ public class PoolB implements Callable<String> {
         this.cpds = cpds;
         readFileIsDone = new AtomicBoolean(false);
         validationIsDone = new AtomicBoolean(false);
+        this.barrier = barrier;
     }
     @Override
-    public String call(){
+    public String call() throws InterruptedException, BrokenBarrierException{
         LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(queueFromFile_size);
         LinkedBlockingQueue<JType> queueParsedObjects = new LinkedBlockingQueue<JType>(queueParsedObjectse_size);
         //Список для объектов CompleteFuture
         //List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         List<Future<String>> futures = new ArrayList<Future<String>>();
-
+        barrier.await();
         try{
             task_B_Executor.submit(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone));
             task_B_Executor.submit(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone));
@@ -68,6 +72,8 @@ public class PoolB implements Callable<String> {
         }finally{
             task_B_Executor.shutdown();         
         }
+        
+        barrier.await();
         return "Пул потоков Б завершил работу";
     }
     

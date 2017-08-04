@@ -35,7 +35,7 @@ public class RecognizeAndValidate implements Runnable {
     }
     @Override
     public void run(){
-        while(!readFileIsDone.get() && !inputQueue.isEmpty()){
+        while(checker()){
             try{
                 String obj = inputQueue.poll();
                 if (!inputQueue.isEmpty()){
@@ -70,6 +70,14 @@ public class RecognizeAndValidate implements Runnable {
             jTypeObject = JSON.parseObject(obj, JTypeC.class);
         return jTypeObject;
 
+    }
+    private boolean checker(){
+        if(!readFileIsDone.get())
+            return true;
+        else if(readFileIsDone.get() & inputQueue.isEmpty())
+            return false;
+        else
+            return true;
     }
         
 }

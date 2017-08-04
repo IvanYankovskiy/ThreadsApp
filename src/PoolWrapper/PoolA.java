@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -27,10 +28,12 @@ public class PoolA implements Callable<String> {
     private final String FILENAME;
     private long generatedObjectsCounter;
     private final long N;
-    public PoolA(String FILENAME, long N){
+    private CyclicBarrier barrier;
+    public PoolA(String FILENAME, long N, CyclicBarrier barrier){
         task_A_Executor = Executors.newFixedThreadPool(3);
         this.FILENAME = FILENAME;
         this.N = N;
+        this.barrier = barrier;
     }
     @Override
     public String call() throws Exception {
@@ -39,7 +42,9 @@ public class PoolA implements Callable<String> {
         List<String> results = new ArrayList<String>();
         //Пул потоков для обработки задачи а)
         ExecutorService task_A_Executor = Executors.newFixedThreadPool(3);
+        
         try{
+            
             //futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteType(FILENAME, N, "JTypeA")));
             futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeA(FILENAME,N)));
             futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeB(FILENAME,N)));
@@ -47,10 +52,13 @@ public class PoolA implements Callable<String> {
             for(Future<String> ftr : futures){
                 results.add(ftr.get());
             }
+            generatedObjectsCounter = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8).count();
+            System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " строк");
         }finally{
             task_A_Executor.shutdown();
             generatedObjectsCounter = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8).count();
         }
+        barrier.await();
         for(String result : results){
             System.out.println(result);
         }

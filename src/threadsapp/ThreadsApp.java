@@ -69,15 +69,16 @@ static final long N = 100000;
         List<String> results = new ArrayList<String>();
         
         ExecutorService appExecutor = Executors.newFixedThreadPool(3);
+        CyclicBarrier barrier = new CyclicBarrier(3);
         try{
-            Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, N));
+            Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, 1000, barrier));
             
-            Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds));
+            Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds, barrier));
             
-            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds));
-            results.add(taskG_result.get());  
+            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds, barrier));
+            /*results.add(taskG_result.get());  
             results.add(taskB_result.get());
-            results.add(taskA_result.get());
+            results.add(taskA_result.get());*/
         }finally{
             appExecutor.shutdown();
         }     
