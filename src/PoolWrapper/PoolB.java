@@ -34,18 +34,17 @@ public class PoolB implements Callable<String> {
     private AtomicBoolean validationIsDone;
     private final int queueFromFile_size;
     private final int queueParsedObjectse_size;
-    public PoolB(String FILENAME){
+    public PoolB(String FILENAME, ComboPooledDataSource cpds){
         queueFromFile_size = 50000;
         queueParsedObjectse_size = 10000;
         this.FILENAME = FILENAME;
         task_B_Executor = Executors.newFixedThreadPool(5);
-        cpds = new ComboPooledDataSource();
+        this.cpds = cpds;
         readFileIsDone = new AtomicBoolean(false);
         validationIsDone = new AtomicBoolean(false);
     }
     @Override
     public String call(){
-        configureConnectionPool(cpds);
         LinkedBlockingQueue<String> queueFromFile = new LinkedBlockingQueue<String>(queueFromFile_size);
         LinkedBlockingQueue<JType> queueParsedObjects = new LinkedBlockingQueue<JType>(queueParsedObjectse_size);
         //Список для объектов CompleteFuture
@@ -67,12 +66,7 @@ public class PoolB implements Callable<String> {
             System.out.println(" Выброс исключения " + ex.getMessage()+"\n");
             Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
         }finally{
-            task_B_Executor.shutdown();
-            /*for(Future<String> ftr : futures){
-                results.add(ftr.get());
-            }
-            results.forEach((result) -> {System.out.println(result);});*/
-            System.out.println("Пул потоков Б завершил работу");           
+            task_B_Executor.shutdown();         
         }
         return "Пул потоков Б завершил работу";
     }

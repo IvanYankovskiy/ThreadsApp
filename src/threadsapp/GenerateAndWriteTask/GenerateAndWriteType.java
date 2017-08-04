@@ -46,15 +46,10 @@ public class GenerateAndWriteType implements Runnable {
                         obj = new JTypeB();
                         break;  
                 }
-                
-                try{
                 writeJSON_objectToFile(obj, FILENAME); 
                 if ((counter.get())%10000 == 0)
                     System.out.println("Поток задачи а - генерации и записи JSON type A сгенерировал " + counter + " записей");
                 counter.incrementAndGet();
-            }finally{
-            
-            }
         }
             
         String msg = "Поток задачи а - генерации и записи JSON " + type + "закончил работу. Записано "

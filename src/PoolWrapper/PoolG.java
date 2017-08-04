@@ -28,16 +28,15 @@ import static threadsapp.ThreadsApp.configureConnectionPool;
 public class PoolG implements Callable<String>{
     private final List<String> tasks;
     private final String OUTPUTFILENAME;
+    private final ComboPooledDataSource cpds;
     
-    public PoolG(String OUTPUTFILENAME, List<String> tasks){
+    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds ){
         this.tasks = tasks;
         this.OUTPUTFILENAME = OUTPUTFILENAME;
+        this.cpds = cpds;
     }
     @Override
     public String call() throws Exception {
-        ComboPooledDataSource cpds = new ComboPooledDataSource();
-        configureConnectionPool(cpds);
-        
         //Список для объектов CompleteFuture
         List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         //Списко для строк резульатов выполнения потоков

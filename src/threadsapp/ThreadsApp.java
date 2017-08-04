@@ -68,11 +68,11 @@ static final long N = 100000;
         ExecutorService appExecutor = Executors.newFixedThreadPool(3);
         try{
             //futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteType(FILENAME, N, "JTypeA")));
-            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME,tasks));
-            Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME));
             Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, N));
             results.add(taskA_result.get());
+            Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds));
             results.add(taskB_result.get());
+            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds));
             results.add(taskG_result.get());
         }finally{
             appExecutor.shutdown();
@@ -89,7 +89,6 @@ static final long N = 100000;
         cpds.setJdbcUrl( DB_URL );
         cpds.setUser(USER);                                  
         cpds.setPassword(PASS);                                  
-
         // the settings below are optional -- c3p0 can work with defaults
         cpds.setMinPoolSize(1);                                     
         cpds.setAcquireIncrement(5);
