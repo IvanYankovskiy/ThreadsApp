@@ -35,6 +35,7 @@ public class RecognizeAndValidate implements Runnable {
     }
     @Override
     public void run(){
+        System.out.println("Поток задачи Б - валидатор начал работу");
         while(checker()){
             try{
                 String obj = inputQueue.poll();
@@ -52,7 +53,7 @@ public class RecognizeAndValidate implements Runnable {
                     }
                 }        
             }catch(Exception ex){
-                System.out.println(" Вы брос исключения в " + this.toString() + " " + ex.getMessage() + "\n");
+                System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage() + "\n");
                 Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
             }
             

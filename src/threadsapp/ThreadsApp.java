@@ -49,7 +49,7 @@ static final String DB_URL = "jdbc:mysql://localhost/Devices";
 static final String USER = "root";
 static final String PASS = "12345";
 static final List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC");
-static final long N = 100000;
+static final long N = 1000;
     /**
      * @param args the command line arguments
      */
@@ -69,13 +69,13 @@ static final long N = 100000;
         List<String> results = new ArrayList<String>();
         
         ExecutorService appExecutor = Executors.newFixedThreadPool(3);
-        CyclicBarrier barrier = new CyclicBarrier(3);
+        Phaser phaser = new Phaser(3);
         try{
-            Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, 1000, barrier));
+            Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, 1000, phaser));
             
-            Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds, barrier));
+            Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds, phaser));
             
-            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds, barrier));
+            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds, phaser));
             /*results.add(taskG_result.get());  
             results.add(taskB_result.get());
             results.add(taskA_result.get());*/

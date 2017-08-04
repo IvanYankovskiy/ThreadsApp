@@ -15,6 +15,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Phaser;
 import threadsapp.GenerateAndWriteTask.GenerateAndWriteTypeA;
 import threadsapp.GenerateAndWriteTask.GenerateAndWriteTypeB;
 import threadsapp.GenerateAndWriteTask.GenerateAndWriteTypeC;
@@ -28,15 +29,16 @@ public class PoolA implements Callable<String> {
     private final String FILENAME;
     private long generatedObjectsCounter;
     private final long N;
-    private CyclicBarrier barrier;
-    public PoolA(String FILENAME, long N, CyclicBarrier barrier){
+    private Phaser phaser;
+    public PoolA(String FILENAME, long N, Phaser phaser){
         task_A_Executor = Executors.newFixedThreadPool(3);
         this.FILENAME = FILENAME;
         this.N = N;
-        this.barrier = barrier;
+        this.phaser = phaser;
     }
     @Override
     public String call() throws Exception {
+        
         List<Future<String>> futures = new ArrayList<Future<String>>();
         //Списко для строк резульатов выполнения потоков
         List<String> results = new ArrayList<String>();
@@ -56,9 +58,18 @@ public class PoolA implements Callable<String> {
             System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " строк");
         }finally{
             task_A_Executor.shutdown();
+            boolean done = false;
+            while(!done){
+                done = true;
+                for(Future<String> ft : futures){
+                    done &=ft.isDone();
+                }
+            }
+            phaser.arriveAndDeregister();
             generatedObjectsCounter = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8).count();
         }
-        barrier.await();
+        
+        
         for(String result : results){
             System.out.println(result);
         }

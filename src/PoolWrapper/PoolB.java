@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,8 +37,8 @@ public class PoolB implements Callable<String> {
     private AtomicBoolean validationIsDone;
     private final int queueFromFile_size;
     private final int queueParsedObjectse_size;
-    private CyclicBarrier barrier;
-    public PoolB(String FILENAME, ComboPooledDataSource cpds, CyclicBarrier barrier){
+    private Phaser phaser;
+    public PoolB(String FILENAME, ComboPooledDataSource cpds, Phaser phaser){
         queueFromFile_size = 50000;
         queueParsedObjectse_size = 10000;
         this.FILENAME = FILENAME;
@@ -45,7 +46,7 @@ public class PoolB implements Callable<String> {
         this.cpds = cpds;
         readFileIsDone = new AtomicBoolean(false);
         validationIsDone = new AtomicBoolean(false);
-        this.barrier = barrier;
+        this.phaser = phaser;
     }
     @Override
     public String call() throws InterruptedException, BrokenBarrierException{
@@ -54,12 +55,12 @@ public class PoolB implements Callable<String> {
         //Список для объектов CompleteFuture
         //List<CompletableFuture<String>> futures = new ArrayList<CompletableFuture<String>>();
         List<Future<String>> futures = new ArrayList<Future<String>>();
-        barrier.await();
+        phaser.arriveAndAwaitAdvance();
         try{
-            task_B_Executor.submit(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone));
-            task_B_Executor.submit(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone));
+            futures.add((Future<String>) task_B_Executor.submit(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone)));
+            futures.add((Future<String>) task_B_Executor.submit(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone)));
             for(int i = 0; i < 3; i++)
-                task_B_Executor.submit(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds));
+            futures.add((Future<String>) task_B_Executor.submit(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds)));
         /*  CompletableFuture.runAsync(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone), task_B_Executor);
             CompletableFuture.runAsync(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone), task_B_Executor);
             CompletableFuture.runAsync(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds), task_B_Executor);
@@ -70,10 +71,18 @@ public class PoolB implements Callable<String> {
             System.out.println(" Выброс исключения " + ex.getMessage()+"\n");
             Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
         }finally{
-            task_B_Executor.shutdown();         
+            task_B_Executor.shutdown();
+            boolean done = false;
+            while(!done){
+                done = true;
+                for(Future<String> ft : futures){
+                    done &=ft.isDone();
+                }
+            }
+            phaser.arriveAndDeregister();
         }
         
-        barrier.await();
+        
         return "Пул потоков Б завершил работу";
     }
     

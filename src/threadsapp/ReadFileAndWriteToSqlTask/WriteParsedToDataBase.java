@@ -63,11 +63,12 @@ public class WriteParsedToDataBase implements Runnable {
     
     @Override
     public void run(){
+        System.out.println("Поток задачи Б - запись в БД начал работу");
         // a - поток валидации, если true, то работу закончил
         // b - objectQueue.isEmpty() - переменная хранит true, если очередь пуста
         // !((a^b)&a) - логическое выражение, которое принимает значение false тогда и только тогда, когда
         // a == true, и b == true и позволит выйти из цикла. Это будет означать, что все объекты валидированы и отправлены в БД
-        while(!((validationIsDone.get() ^ objectQueue.isEmpty())& validationIsDone.get())) {
+        while(checker()) {
             try{
                 identifyAndWrite(objectQueue.poll());              
             }
@@ -77,15 +78,11 @@ public class WriteParsedToDataBase implements Runnable {
             }
         }
         lock.lock();
-        System.out.println("Поток записи в БД " + this.toString() + " завершил свою работу ");
         AtomicLong written = new AtomicLong(0);
         written.addAndGet(writtenA.get());
         written.addAndGet(writtenB.get());
         written.addAndGet(writtenC.get());
-        System.out.println("Потоком " + this.toString() + " записано объектов типа JTypeA: " + writtenA.get());
-        System.out.println("Потоком " + this.toString() + " записано объектов типа JTypeB: " + writtenB.get());
-        System.out.println("Потоком " + this.toString() + " записано объектов типа JTypeC: " + writtenC.get());
-        System.out.println("Всего потоком " + this.toString() + "записано объектов: " + written.get());
+        System.out.println("Поток записи в БД " + this.toString() + " завершил свою работу записано объектов: " + written.get());
         lock.unlock();
     }
     private void identifyAndWrite(JType obj) throws InterruptedException{
@@ -188,5 +185,12 @@ public class WriteParsedToDataBase implements Runnable {
             System.out.println("Всего записано объектов: " + written.get());
         }
     }
-    
+    private boolean checker(){
+        if(!validationIsDone.get())
+            return true;
+        else if(validationIsDone.get() & objectQueue.isEmpty())
+            return false;
+        else
+            return true;
+    }
 }

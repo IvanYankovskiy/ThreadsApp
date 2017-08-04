@@ -14,6 +14,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,12 +31,12 @@ public class PoolG implements Callable<String>{
     private final List<String> tasks;
     private final String OUTPUTFILENAME;
     private final ComboPooledDataSource cpds;
-    private CyclicBarrier barrier;
-    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds, CyclicBarrier barrier ){
+    private Phaser phaser;
+    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds, Phaser phaser ){
         this.tasks = tasks;
         this.OUTPUTFILENAME = OUTPUTFILENAME;
         this.cpds = cpds;
-        this.barrier = barrier;
+        this.phaser = phaser;
     }
     @Override
     public String call() throws Exception {
@@ -45,10 +46,11 @@ public class PoolG implements Callable<String>{
         List<String> results = new ArrayList<String>();
         //Пул потоков для обработки задачи а)
         ExecutorService task_G_Executor = Executors.newFixedThreadPool(tasks.size()*2);
-        barrier.await();
-        
+        phaser.arriveAndAwaitAdvance();
+        Thread.sleep(500);
+        phaser.arriveAndAwaitAdvance();
         try{
-            barrier.await();
+            
             for(String task : tasks){
                 AtomicBoolean isReadingFromDBisDone = new AtomicBoolean(false);
                 LinkedBlockingQueue<String> jsonFromDBQueue = new LinkedBlockingQueue<String>(10000);
@@ -59,7 +61,8 @@ public class PoolG implements Callable<String>{
             System.out.println(" Вы брос исключения " + ex.getMessage()+"\n");
             Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
         }finally{
-            task_G_Executor.shutdown();         
+            task_G_Executor.shutdown();
+            phaser.arriveAndDeregister();
         }
         return "Пул потоков Г завершил работу";
     }

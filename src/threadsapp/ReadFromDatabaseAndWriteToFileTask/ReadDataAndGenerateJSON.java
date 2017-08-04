@@ -46,7 +46,7 @@ public class ReadDataAndGenerateJSON implements Runnable {
     @Override
     public void run() {
         boolean isDone = false;
-        
+        System.out.println(Thread.currentThread().getName()+ " начал чтение из БД");
         //Timestamp nextReportTime = getFirstReportTime();
         while(true & !isDone){
             lock.lock();
@@ -61,7 +61,7 @@ public class ReadDataAndGenerateJSON implements Runnable {
                 stmt.setInt(1, pagingQueueStep);
                 stmt.setLong(2, offset.get());
                 try (ResultSet rs = stmt.executeQuery()) {
-                    if (!rs.next()&& rs.wasNull())
+                    if (!rs.next())
                             isDone = true;
                     else
                         rs.previous();
@@ -81,7 +81,7 @@ public class ReadDataAndGenerateJSON implements Runnable {
                 //Handle errors for Class.forName
                 e.printStackTrace();
             }finally{
-                //lock.unlock();
+                lock.unlock();
                 
                 //finally block used to close resources
                 try{

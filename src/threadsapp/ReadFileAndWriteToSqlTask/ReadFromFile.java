@@ -43,6 +43,7 @@ public class ReadFromFile implements Runnable {
     
     @Override
     public void run() {
+        System.out.println("Поток задачи Б - Чтение из файла начал работу");
         this.isDone.set(false);
         try (Stream<String> stream = Files.lines(Paths.get(FILENAME), StandardCharsets.UTF_8)) {
                 stream.forEach(line -> {
@@ -63,7 +64,7 @@ public class ReadFromFile implements Runnable {
         isDone.set(true);
         System.out.println();
         System.out.println();
-        System.out.println("Все строки в файле " + FILENAME + "прочитаны");
+        System.out.println("Все строки в файле " + FILENAME + " прочитаны");
         System.out.println();
         System.out.println();
     }
