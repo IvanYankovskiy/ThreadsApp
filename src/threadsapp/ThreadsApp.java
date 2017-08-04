@@ -67,10 +67,6 @@ static final long N = 100000;
         File outputfile = new File("output.json");
         OUTPUTFILENAME = outputfile.getAbsolutePath();
         createFile(outputfile);
-        //файл, куда будут записаны результаты работы потоков
-        File resultsfile = new File("reuslts.json");
-        RESULTSFILE = outputfile.getAbsolutePath();
-        createFile(resultsfile);
         
         List<Future<String>> futures = new ArrayList<Future<String>>();
         List<String> results = new ArrayList<String>();
