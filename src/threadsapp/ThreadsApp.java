@@ -77,7 +77,7 @@ static final long N = 1000;
         }finally{
             appExecutor.shutdown();
         }     
-        while()
+        
     }
 
    public static void configureConnectionPool(ComboPooledDataSource cpds){
