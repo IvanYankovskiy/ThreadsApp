@@ -51,7 +51,7 @@ static final String DB_URL = "jdbc:mysql://localhost/Devices";
 static final String USER = "root";
 static final String PASS = "12345";
 static final List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC");
-static final long N = 1000;
+static final long N = 100000;
     /**
      * @param args the command line arguments
      */
