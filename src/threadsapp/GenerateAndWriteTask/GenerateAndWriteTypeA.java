@@ -45,7 +45,6 @@ public class GenerateAndWriteTypeA implements Callable<String> {
         }
         String result = "Поток задачи а - генерации и записи JSON type A закончил работу. Записано "
                 + counter + " объектов";
-        System.out.println(result);
         return result;
     }
     

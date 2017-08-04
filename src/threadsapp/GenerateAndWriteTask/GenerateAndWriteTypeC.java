@@ -45,7 +45,6 @@ public class GenerateAndWriteTypeC implements Callable<String> {
         }
         String result = "Поток задачи а - генерации и записи JSON type C закончил работу. Записано "
                 + counter + " объектов";
-        System.out.println(result);
         return result;
     }
     

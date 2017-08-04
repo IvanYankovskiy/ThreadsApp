@@ -42,8 +42,6 @@ import threadsapp.ReadFromDatabaseAndWriteToFileTask.*;
  * @author Ivan
  */
 public class ThreadsApp {
-static final String FILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тестовое задание\\file.json";
-static final String OUTPUTFILENAME = "C:\\Users\\Ivan\\Desktop\\TomskLabs тестовое задание\\outputfile.json";
 //Задать имя JDBC драйвера и указать базу данных
 static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";  
 static final String DB_URL = "jdbc:mysql://localhost/Devices";
@@ -56,24 +54,30 @@ static final long N = 100000;
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException{
+        final String FILENAME;
+        final String OUTPUTFILENAME;
         ComboPooledDataSource cpds = new ComboPooledDataSource();
-        File file = new File(FILENAME);
+        configureConnectionPool(cpds);
+        File file = new File("generated.json");
+        FILENAME = file.getAbsolutePath();
         createFile(file);
         
-        File outputfile = new File(OUTPUTFILENAME);
+        File outputfile = new File("output.json");
+        OUTPUTFILENAME = outputfile.getAbsolutePath();
         createFile(outputfile);
         
         List<String> results = new ArrayList<String>();
         
         ExecutorService appExecutor = Executors.newFixedThreadPool(3);
         try{
-            //futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteType(FILENAME, N, "JTypeA")));
             Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, N));
-            results.add(taskA_result.get());
+            
             Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds));
-            results.add(taskB_result.get());
+            
             Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds));
-            results.add(taskG_result.get());
+            results.add(taskG_result.get());  
+            results.add(taskB_result.get());
+            results.add(taskA_result.get());
         }finally{
             appExecutor.shutdown();
         }     
@@ -92,7 +96,7 @@ static final long N = 100000;
         // the settings below are optional -- c3p0 can work with defaults
         cpds.setMinPoolSize(1);                                     
         cpds.setAcquireIncrement(5);
-        cpds.setMaxPoolSize(20);
+        cpds.setMaxPoolSize(30);
     }
     public static void createFile(File file){
         try {

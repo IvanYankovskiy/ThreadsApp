@@ -24,6 +24,7 @@ import java.util.stream.*;
 import java.nio.file.Paths;
 import java.nio.charset.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 /**
  *
  * @author Ivan
@@ -32,10 +33,12 @@ public class ReadFromFile implements Runnable {
     private final AtomicBoolean isDone;
     private final String FILENAME;
     private LinkedBlockingQueue<String> queue;
+    private AtomicLong counter;
     public ReadFromFile(String FILENAME,LinkedBlockingQueue<String> queue, AtomicBoolean isDone){
         this.FILENAME = FILENAME;
         this.queue = queue;
         this.isDone = isDone;
+        counter = new AtomicLong(0);
     }
     
     @Override
@@ -45,9 +48,12 @@ public class ReadFromFile implements Runnable {
                 stream.forEach(line -> {
                     try {
                         queue.put(line);
+                        counter.incrementAndGet();
                     } catch (InterruptedException ex) {
                         Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
                     }
+                    if (counter.get() >= 300000)
+                            stream.close();
 
                });
         } catch (IOException e) {
