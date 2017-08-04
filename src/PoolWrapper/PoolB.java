@@ -81,8 +81,6 @@ public class PoolB implements Callable<String> {
             }
             phaser.arriveAndDeregister();
         }
-        
-        
         return "Пул потоков Б завершил работу";
     }
     

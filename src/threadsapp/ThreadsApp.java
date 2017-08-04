@@ -49,40 +49,47 @@ static final String DB_URL = "jdbc:mysql://localhost/Devices";
 static final String USER = "root";
 static final String PASS = "12345";
 static final List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC");
-static final long N = 1000;
+static final long N = 100000;
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException{
         final String FILENAME;
         final String OUTPUTFILENAME;
+        final String RESULTSFILE;
         ComboPooledDataSource cpds = new ComboPooledDataSource();
         configureConnectionPool(cpds);
+        //файл, куда будут записаны сгенерированные объекты; Задача А
         File file = new File("generated.json");
         FILENAME = file.getAbsolutePath();
         createFile(file);
-        
+        //файл, куда будут записаны объеты, считанные из базы данных; Задача Г
         File outputfile = new File("output.json");
         OUTPUTFILENAME = outputfile.getAbsolutePath();
         createFile(outputfile);
+        //файл, куда будут записаны результаты работы потоков
+        File resultsfile = new File("reuslts.json");
+        RESULTSFILE = outputfile.getAbsolutePath();
+        createFile(resultsfile);
         
+        List<Future<String>> futures = new ArrayList<Future<String>>();
         List<String> results = new ArrayList<String>();
         
         ExecutorService appExecutor = Executors.newFixedThreadPool(3);
         Phaser phaser = new Phaser(3);
         try{
             Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, 1000, phaser));
-            
+            futures.add(taskA_result);
             Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds, phaser));
-            
+            futures.add(taskB_result);
             Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds, phaser));
+            futures.add(taskB_result);
             /*results.add(taskG_result.get());  
             results.add(taskB_result.get());
             results.add(taskA_result.get());*/
         }finally{
-            appExecutor.shutdown();
-        }     
-        
+            appExecutor.shutdown();                
+        }          
     }
 
    public static void configureConnectionPool(ComboPooledDataSource cpds){
@@ -118,7 +125,21 @@ static final long N = 1000;
         } catch (IOException ex) {
             Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
         }
-        //вывести количество количество объектов в файле
+        //вывести количество количество строк в файле
         System.out.println("Файл " + FILENAME + " содержит " + generatedObjectsCounter + " строк");
+    }
+    public static void writeStringToFile(String object, String FILENAME){
+        try (FileWriter writer = new FileWriter(FILENAME, true)){
+            //writer.append(JSON.toJSONString(object));
+            if(!object.equals(null)){
+                writer.write(JSON.toJSONString(object) + "\n");
+                writer.flush();
+                writer.close();
+            }
+                
+        } catch (IOException ex) {
+            Logger.getLogger(ThreadsApp.class.getName())
+                    .log(Level.SEVERE, null, ex);
+        }
     }
 }

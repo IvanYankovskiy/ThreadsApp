@@ -64,7 +64,7 @@ public class pollAndWriteToFile implements Runnable {
                 //fileWriterLock.unlock();
             }  */           
         }
-        System.out.println("Записано " + countWritten.get() + " объектов  типа " + jsonType);
+        System.out.println("Записано " + countWritten.get() + " объектов потоком " + Thread.currentThread().getName());
     }
     
     public void writeJSON_objectToFile(String object, String FILENAME){
