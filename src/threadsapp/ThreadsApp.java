@@ -45,28 +45,38 @@ public class ThreadsApp {
 //Задать имя JDBC драйвера и указать базу данных
 static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";  
 static final String DB_URL = "jdbc:mysql://localhost/Devices";
-//Задать данные авторизации в БД 
-static final String USER = "root";
-static final String PASS = "12345";
 static final List<String> tasks = Arrays.asList("JTypeA", "JTypeB", "JTypeC");
-static final long N = 100000;
+static final String FILENAME;
+static File file = new File("generated.json");
+static final String OUTPUTFILENAME;
+static File outputfile = new File("output.json");
+static final String USER; //= "root";
+static final String PASS; // = "12345";
+static final long N;
+
+static{
+        //File file = new File("generated.json");
+        FILENAME = file.getAbsolutePath();
+        createFile(file);
+        //файл, куда будут записаны объеты, считанные из базы данных; Задача Г
+        //File outputfile = new File("output.json");
+        OUTPUTFILENAME = outputfile.getAbsolutePath();
+        createFile(outputfile);
+        
+        USER = setUserName();
+        PASS = setPassword();
+        N = setOjectQuantity();
+}
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException{
-        final String FILENAME;
-        final String OUTPUTFILENAME;
-        final String RESULTSFILE;
+        
+        
         ComboPooledDataSource cpds = new ComboPooledDataSource();
         configureConnectionPool(cpds);
         //файл, куда будут записаны сгенерированные объекты; Задача А
-        File file = new File("generated.json");
-        FILENAME = file.getAbsolutePath();
-        createFile(file);
-        //файл, куда будут записаны объеты, считанные из базы данных; Задача Г
-        File outputfile = new File("output.json");
-        OUTPUTFILENAME = outputfile.getAbsolutePath();
-        createFile(outputfile);
+        
         
         List<Future<String>> futures = new ArrayList<Future<String>>();
         List<String> results = new ArrayList<String>();
@@ -107,8 +117,32 @@ static final long N = 100000;
             //Созадть файл
             if (file.createNewFile())
                 System.out.println("Файл" + file.getAbsolutePath() + " создан");
-            else
+            else{
                 System.out.println("Файл" + file.getAbsolutePath() + " уже существует.");
+                char choice, ignore;
+                do{
+                    System.out.println("Вы хотите дописать сгенерированные объекты в существующий файл или пересоздать файл");
+                    System.out.println("Введите 1 - если вы хотите создать файл заново.");
+                    System.out.println("Введите 2 - если вы хотите добавить объекты к существующему.");
+                    System.out.print("Ваш выбор: ");
+                    choice = (char)System.in.read();
+                    do{
+                        ignore = (char)System.in.read();
+                    }
+                    while (ignore != '\n');
+                }while (choice < 0 | choice < 3 );
+                switch(choice){
+                    case '1':
+                        if(file.delete())
+                            if(file.createNewFile())
+                                System.out.println("Файл" + file.getAbsolutePath() + " создан заново");  
+                        break;
+                    case '2':
+                        break;
+                }
+            }
+                
+                
         } catch (IOException ex) {
             Logger.getLogger(ThreadsApp.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -137,5 +171,31 @@ static final long N = 100000;
             Logger.getLogger(ThreadsApp.class.getName())
                     .log(Level.SEVERE, null, ex);
         }
+    }
+    
+    public static String setUserName(){
+        String USER;
+        Scanner in = new Scanner(System.in);
+        System.out.print("Введите имя пользователя: ");
+        USER = in.nextLine();
+        System.out.println();
+        return USER;
+    }
+    public static String setPassword(){
+        String PASSWORD;
+        Scanner in = new Scanner(System.in);
+        System.out.print("Введите пароль: ");
+        PASSWORD = in.nextLine();
+        System.out.println();
+        return PASSWORD;
+    }
+    
+    public static long setOjectQuantity(){
+        long quantity;
+        Scanner in = new Scanner(System.in);
+        System.out.print("Введите введите количество генерируемых объектов каждого типа (целое число: ");
+        quantity = in.nextLong();
+        System.out.println();
+        return quantity;
     }
 }
