@@ -193,7 +193,7 @@ static{
     public static long setOjectQuantity(){
         long quantity;
         Scanner in = new Scanner(System.in);
-        System.out.print("Введите введите количество генерируемых объектов каждого типа (целое число: ");
+        System.out.print("Введите введите количество генерируемых объектов каждого типа (целое число): ");
         quantity = in.nextLong();
         System.out.println();
         return quantity;
