@@ -16,9 +16,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
+import threadsapp.GenerateAndWriteTask.GenerateAndWriteType;
 import threadsapp.GenerateAndWriteTask.GenerateAndWriteTypeA;
 import threadsapp.GenerateAndWriteTask.GenerateAndWriteTypeB;
 import threadsapp.GenerateAndWriteTask.GenerateAndWriteTypeC;
+import threadsapp.JTypes;
+import static threadsapp.JTypes.JTYPEA;
+import static threadsapp.JTypes.JTYPEB;
+import static threadsapp.JTypes.JTYPEC;
 
 /**
  *
@@ -46,11 +51,14 @@ public class PoolA implements Callable<String> {
         ExecutorService task_A_Executor = Executors.newFixedThreadPool(3);
         
         try{
-            
-            //futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteType(FILENAME, N, "JTypeA")));
+            for(JTypes t : JTypes.values()){
+               futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteType(FILENAME, N, t))); 
+            }
+            /*
+            //старая реализация
             futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeA(FILENAME,N)));
             futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeB(FILENAME,N)));
-            futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeC(FILENAME,N)));
+            futures.add((Future<String>) task_A_Executor.submit(new GenerateAndWriteTypeC(FILENAME,N)));*/
             for(Future<String> ftr : futures){
                 results.add(ftr.get());
             }

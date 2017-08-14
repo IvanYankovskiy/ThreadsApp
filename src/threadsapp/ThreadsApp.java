@@ -84,7 +84,7 @@ static{
         ExecutorService appExecutor = Executors.newFixedThreadPool(3);
         Phaser phaser = new Phaser(3);
         try{
-            Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, 1000, phaser));
+            Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, N, phaser));
             futures.add(taskA_result);
             Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds, phaser));
             futures.add(taskB_result);
