@@ -36,30 +36,34 @@ public class RecognizeAndValidate implements Runnable {
     @Override
     public void run(){
         System.out.println("Поток задачи Б - валидатор начал работу");
-        while(checker()){
-            try{
-                String obj = inputQueue.poll();
-                if (!inputQueue.isEmpty()){
-                    boolean isValid = false;
-                    lock.lock();
-                    try {
-                        isValid = Validator.validate(obj);
-                    } finally {
-                        lock.unlock();
-                    }
-                    if (isValid){
-                        JType JTypeObj = parseJSON(obj);
-                        outputQueue.put(JTypeObj);
-                    }
-                }        
-            }catch(Exception ex){
-                System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage() + "\n");
-                Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
+        try {
+            while(checker()){
+                try{
+                    String obj = inputQueue.poll();
+                    if (!inputQueue.isEmpty()){
+                        boolean isValid = false;
+                        lock.lock();
+                        try {
+                            isValid = Validator.validate(obj);
+                        } finally {
+                            lock.unlock();
+                        }
+                        if (isValid){
+                            JType JTypeObj = parseJSON(obj);
+                            outputQueue.put(JTypeObj);
+                        }
+                    }        
+                }catch(Exception ex){
+                    System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage() + "\n");
+                    Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
-            
+        } finally {
+            validationIsDone.set(true);
+            System.out.println("Поток парсинга и валидации " + this.toString() + " завершил работу.");   
         }
-        validationIsDone.set(true);
-        System.out.println("Поток парсинга и валидации " + this.toString() + " завершил работу.");
+        
+        
     }
     private JType parseJSON(String obj) throws com.alibaba.fastjson.JSONException {
         JType jTypeObject = new JType();

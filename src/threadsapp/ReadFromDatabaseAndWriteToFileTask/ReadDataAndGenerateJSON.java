@@ -48,58 +48,63 @@ public class ReadDataAndGenerateJSON implements Runnable {
         boolean isDone = false;
         System.out.println(Thread.currentThread().getName()+ " начал чтение из БД");
         //Timestamp nextReportTime = getFirstReportTime();
-        while(true & !isDone){
-            lock.lock();
-            PreparedStatement stmt = null;
-            Connection conn = null; 
-            try{
-                //sql = "SELECT* FROM " + jsonType + " WHERE report_time <= ? ORDER BY report_time DESC LIMIT ?;";
-                sql = "SELECT* FROM " + jsonType + " ORDER BY report_time DESC LIMIT ? OFFSET ?;";
-                conn = cpds.getConnection();
-                stmt = conn.prepareStatement(sql);
-                //stmt.setTimestamp(1, nextReportTime);
-                stmt.setInt(1, pagingQueueStep);
-                stmt.setLong(2, offset.get());
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (!rs.next())
-                            isDone = true;
-                    else
-                        rs.previous();
-                    while (rs.next()) {
-                        JType jTypeObj;
-                        //nextReportTime = rs.getTimestamp("report_time");
-                        jTypeObj = createJsonABtypeString(jsonType,rs);
-                        String jsonString = JSON.toJSONString(jTypeObj);
-                        outputQueue.put(jsonString);   
+        try {
+            while(true & !isDone){
+                lock.lock();
+                PreparedStatement stmt = null;
+                Connection conn = null; 
+                try{
+                    //sql = "SELECT* FROM " + jsonType + " WHERE report_time <= ? ORDER BY report_time DESC LIMIT ?;";
+                    sql = "SELECT* FROM " + jsonType + " ORDER BY report_time DESC LIMIT ? OFFSET ?;";
+                    conn = cpds.getConnection();
+                    stmt = conn.prepareStatement(sql);
+                    //stmt.setTimestamp(1, nextReportTime);
+                    stmt.setInt(1, pagingQueueStep);
+                    stmt.setLong(2, offset.get());
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (!rs.next())
+                                isDone = true;
+                        else
+                            rs.previous();
+                        while (rs.next()) {
+                            JType jTypeObj;
+                            //nextReportTime = rs.getTimestamp("report_time");
+                            jTypeObj = createJsonABtypeString(jsonType,rs);
+                            String jsonString = JSON.toJSONString(jTypeObj);
+                            outputQueue.put(jsonString);   
+                        }
+                        rs.close();
                     }
-                    rs.close();
-                }
-            }catch(SQLException se){
-                //Handle errors for JDBC
-                se.printStackTrace();
-            }catch(Exception e){
-                //Handle errors for Class.forName
-                e.printStackTrace();
-            }finally{
-                lock.unlock();
-                
-                //finally block used to close resources
-                try{
-                    if(stmt!=null)
-                        conn.close();
                 }catch(SQLException se){
-                }
-                try{
-                    if(conn!=null)
-                        conn.close();
-                }catch(SQLException se){
+                    //Handle errors for JDBC
                     se.printStackTrace();
-                }//end finally try
-            }//end try
-            offset.addAndGet(pagingQueueStep);
+                }catch(Exception e){
+                    //Handle errors for Class.forName
+                    e.printStackTrace();
+                }finally{
+                    lock.unlock();
+
+                    //finally block used to close resources
+                    try{
+                        if(stmt!=null)
+                            conn.close();
+                    }catch(SQLException se){
+                    }
+                    try{
+                        if(conn!=null)
+                            conn.close();
+                    }catch(SQLException se){
+                        se.printStackTrace();
+                    }//end finally try
+                }//end try
+                offset.addAndGet(pagingQueueStep);
+            }
+        } finally {
+            isReadingFromDBisDone.set(true); 
+            System.out.println("Поток чтения объектов типа " + jsonType + " закончил работу"); 
         }
-        isReadingFromDBisDone.set(true); 
-        System.out.println("Поток чтения объектов типа " + jsonType + " закончил работу");
+        
+        
     }
     private JType createJsonABtypeString(String JType, ResultSet rs) throws SQLException{
         

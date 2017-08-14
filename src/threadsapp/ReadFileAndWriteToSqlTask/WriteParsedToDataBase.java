@@ -86,7 +86,7 @@ public class WriteParsedToDataBase implements Runnable {
         lock.unlock();
     }
     private void identifyAndWrite(JType obj) throws InterruptedException{
-        JType currentObject = objectQueue.poll(5, TimeUnit.SECONDS);
+        JType currentObject = obj;
         jTypes_to_DataBase(currentObject);
     }
     private boolean jTypes_to_DataBase(JType obj){

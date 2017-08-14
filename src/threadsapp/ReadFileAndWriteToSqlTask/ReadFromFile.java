@@ -60,13 +60,16 @@ public class ReadFromFile implements Runnable {
         } catch (IOException e) {
                 System.out.println(" Выброс исключения в " + this.toString() + " " + e.getMessage() + "\n");
                 e.printStackTrace();
+        }finally{
+            isDone.set(true);
+            System.out.println();
+            System.out.println();
+            System.out.println("Все строки в файле " + FILENAME + " прочитаны");
+            System.out.println();
+            System.out.println(); 
         }
-        isDone.set(true);
-        System.out.println();
-        System.out.println();
-        System.out.println("Все строки в файле " + FILENAME + " прочитаны");
-        System.out.println();
-        System.out.println();
+            
+        
     }
 
 
