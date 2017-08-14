@@ -32,7 +32,7 @@ public class PoolG implements Callable<String>{
     private final String OUTPUTFILENAME;
     private final ComboPooledDataSource cpds;
     private Phaser phaser;
-    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds, Phaser phaser ){
+    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds, Phaser phaser){
         this.tasks = tasks;
         this.OUTPUTFILENAME = OUTPUTFILENAME;
         this.cpds = cpds;
