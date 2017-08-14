@@ -57,8 +57,10 @@ public class pollAndWriteToFile implements Runnable {
             //fileWriterLock.lock();
             try {
                 
-                String object = inputQueue.take();
-                writeJSON_objectToFile(object, OUTPUTFILENAME);
+                if(!inputQueue.isEmpty()){
+                    String object = inputQueue.take();
+                    writeJSON_objectToFile(object, OUTPUTFILENAME); 
+                }
             }catch(Exception ex){
                 System.out.println(" Выброс исключения в " + this.toString() + " " + ex.getMessage() + "\n");
                 Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
