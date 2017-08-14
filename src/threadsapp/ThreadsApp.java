@@ -81,7 +81,7 @@ static{
         List<Future<String>> futures = new ArrayList<Future<String>>();
         List<String> results = new ArrayList<String>();
         
-        ExecutorService appExecutor = Executors.newFixedThreadPool(1);
+        ExecutorService appExecutor = Executors.newFixedThreadPool(3);
         Phaser phaser = new Phaser(3);
         try{
             
