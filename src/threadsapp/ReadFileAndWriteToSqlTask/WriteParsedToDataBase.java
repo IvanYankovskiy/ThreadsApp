@@ -28,9 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Ivan
  */
 public class WriteParsedToDataBase implements Runnable {
-    AtomicLong writtenA;
-    AtomicLong writtenB;
-    AtomicLong writtenC;
+    private AtomicLong writtenA;
+    private AtomicLong writtenB;
+    private AtomicLong writtenC;
     AtomicBoolean validationIsDone;
     ReentrantLock lock; 
     private LinkedBlockingQueue<JType> objectQueue;

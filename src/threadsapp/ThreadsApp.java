@@ -81,15 +81,15 @@ static{
         List<Future<String>> futures = new ArrayList<Future<String>>();
         List<String> results = new ArrayList<String>();
         
-        ExecutorService appExecutor = Executors.newFixedThreadPool(3);
-        Phaser phaser = new Phaser(3);
+        ExecutorService appExecutor = Executors.newFixedThreadPool(1);
+        //Phaser phaser = new Phaser(3);
         try{
-            
+            /*
             Future<String> taskA_result = (Future<String>) appExecutor.submit(new PoolA(FILENAME, N, phaser));
             futures.add(taskA_result);
             Future<String> taskB_result = (Future<String>) appExecutor.submit(new PoolB(FILENAME, cpds, phaser));
-            futures.add(taskB_result);
-            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds, phaser));
+            futures.add(taskB_result);*/
+            Future<String> taskG_result = (Future<String>) appExecutor.submit(new PoolG(OUTPUTFILENAME, tasks ,cpds));
             futures.add(taskG_result);
             /*results.add(taskG_result.get());  
             results.add(taskB_result.get());

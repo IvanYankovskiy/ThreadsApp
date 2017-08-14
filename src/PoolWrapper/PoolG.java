@@ -31,12 +31,12 @@ public class PoolG implements Callable<String>{
     private final List<String> tasks;
     private final String OUTPUTFILENAME;
     private final ComboPooledDataSource cpds;
-    private Phaser phaser;
-    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds, Phaser phaser ){
+    //private Phaser phaser;
+    public PoolG(String OUTPUTFILENAME, List<String> tasks,ComboPooledDataSource cpds ){
         this.tasks = tasks;
         this.OUTPUTFILENAME = OUTPUTFILENAME;
         this.cpds = cpds;
-        this.phaser = phaser;
+        //this.phaser = phaser;
     }
     @Override
     public String call() throws Exception {
@@ -46,9 +46,9 @@ public class PoolG implements Callable<String>{
         List<String> results = new ArrayList<String>();
         //Пул потоков для обработки задачи а)
         ExecutorService task_G_Executor = Executors.newFixedThreadPool(tasks.size()*2);
-        phaser.arriveAndAwaitAdvance();
+        //phaser.arriveAndAwaitAdvance();
         Thread.sleep(500);
-        phaser.arriveAndAwaitAdvance();
+        //phaser.arriveAndAwaitAdvance();
         try{
             
             for(String task : tasks){
@@ -62,7 +62,7 @@ public class PoolG implements Callable<String>{
             Logger.getLogger(ReadFromFile.class.getName()).log(Level.SEVERE, null, ex);
         }finally{
             task_G_Executor.shutdown();
-            phaser.arriveAndDeregister();
+            //phaser.arriveAndDeregister();
         }
         return "Пул потоков Г завершил работу";
     }
