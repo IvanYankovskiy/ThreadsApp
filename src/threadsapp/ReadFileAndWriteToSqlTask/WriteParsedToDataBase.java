@@ -31,8 +31,8 @@ public class WriteParsedToDataBase implements Runnable {
     private AtomicLong writtenA;
     private AtomicLong writtenB;
     private AtomicLong writtenC;
-    AtomicBoolean validationIsDone;
-    ReentrantLock lock; 
+    private AtomicBoolean validationIsDone;
+    private ReentrantLock lock; 
     private LinkedBlockingQueue<JType> objectQueue;
     ComboPooledDataSource cpds;
     private final String sqlJTypeA = "INSERT INTO JTypeA " + 
