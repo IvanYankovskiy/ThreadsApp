@@ -71,10 +71,14 @@ public class ReadDataAndGenerateJSON implements Runnable {
                             //nextReportTime = rs.getTimestamp("report_time");
                             jTypeObj = createJsonABtypeString(jsonType,rs);
                             String jsonString = JSON.toJSONString(jTypeObj);
-                            outputQueue.put(jsonString);   
+                            outputQueue.put(jsonString);
                         }
                         rs.close();
+                    } catch(SQLException se){
+                    //Handle errors for JDBC
+                    se.printStackTrace();
                     }
+  
                 }catch(SQLException se){
                     //Handle errors for JDBC
                     se.printStackTrace();

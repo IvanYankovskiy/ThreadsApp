@@ -42,7 +42,7 @@ public class PoolB implements Callable<String> {
         queueFromFile_size = 50000;
         queueParsedObjectse_size = 10000;
         this.FILENAME = FILENAME;
-        task_B_Executor = Executors.newFixedThreadPool(5);
+        task_B_Executor = Executors.newFixedThreadPool(8);
         this.cpds = cpds;
         readFileIsDone = new AtomicBoolean(false);
         validationIsDone = new AtomicBoolean(false);
@@ -59,7 +59,7 @@ public class PoolB implements Callable<String> {
         try{
             futures.add((Future<String>) task_B_Executor.submit(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone)));
             futures.add((Future<String>) task_B_Executor.submit(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone)));
-            for(int i = 0; i < 3; i++)
+            for(int i = 0; i < 6; i++)
             futures.add((Future<String>) task_B_Executor.submit(new WriteParsedToDataBase(queueParsedObjects, validationIsDone, cpds)));
         /*  CompletableFuture.runAsync(new ReadFromFile(FILENAME, queueFromFile, readFileIsDone), task_B_Executor);
             CompletableFuture.runAsync(new RecognizeAndValidate(queueFromFile, queueParsedObjects, readFileIsDone, validationIsDone), task_B_Executor);
