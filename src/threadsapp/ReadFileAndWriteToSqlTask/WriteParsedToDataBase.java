@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -41,9 +42,15 @@ public class WriteParsedToDataBase implements Runnable {
     private final String sqlJTypeB = "INSERT INTO JTypeB " + 
                         "(protocol_version, type, device_id, report_time, event_name, reports) " +
                         "VALUES(?,?,?,?,?,?);";
-    private final String sqlJTypeC = "INSERT INTO JTypeC " + 
+    /*private final String sqlJTypeC = "INSERT INTO JTypeC " + 
                         "(protocol_version, type, device_id, report_time, event_name, reports) " +
-                        "VALUES(?,?,?,?,?,?);";
+                        "VALUES(?,?,?,?,?,?);";*/
+    private final String sqlJTypeC = "INSERT INTO JTypeCtrue " + 
+                        "(protocol_version, type, device_id, report_time, event_name) " +
+                        "VALUES(?,?,?,?,?);";
+    private final String sqlJTypeCtime = "INSERT INTO reports " + 
+                        "(id, time) " +
+                        "VALUES(?,?);";
     //Задать имя JDBC драйвера и указать базу данных
     final String JDBC_DRIVER = "com.mysql.jdbc.Driver";  
     final String DB_URL = "jdbc:mysql://localhost/Devices";
@@ -119,16 +126,34 @@ public class WriteParsedToDataBase implements Runnable {
                         writtenB.incrementAndGet();
                     break;
                 case "JTypeC":
-                    stmt = conn.prepareStatement(this.sqlJTypeC);
-                    ArrayList <JTypeTime> reports = ((JTypeC)obj).getReports();
+                    long generatedKey;
+                    //Statement.RETURN_GENERATED_KEYS - позволяет получать сгенерированный id записи, чтобы вставить в связанную таблицу
+                    stmt = conn.prepareStatement(this.sqlJTypeC, Statement.RETURN_GENERATED_KEYS);
+                    LinkedList <JTypeTime> reports = ((JTypeC)obj).getReports();
+                    //записать уникальный ключ сохранения без "reports"."time"
+                    stmt.setDouble(1, obj.getProtocol_version());
+                    stmt.setString(2, obj.getType());
+                    stmt.setString(3, obj.getDevice_id());
+                    stmt.setTimestamp(4, objectTimestamp);
+                    stmt.setString(5, obj.getEvent_name());
+                    int affectedRows = stmt.executeUpdate();
+                    if (affectedRows == 0) {
+                        throw new SQLException("Объект " + obj +  " не добавлен.");
+                    }
+                    try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            generatedKey = generatedKeys.getLong(1);
+                        }
+                        else {
+                            throw new SQLException("Ошибка вставки, id не сгенерирован");
+                        }
+                    }
+                    //если ключ получен, то добавить в связанную таблицу массив времени reports
+                    stmt = conn.prepareStatement(this.sqlJTypeCtime);
                     for(JTypeTime time : reports){
-                        stmt.setDouble(1, obj.getProtocol_version());
-                        stmt.setString(2, obj.getType());
-                        stmt.setString(3, obj.getDevice_id());
-                        stmt.setTimestamp(4, objectTimestamp);
-                        stmt.setString(5, obj.getEvent_name());
                         Instant report_time = time.getTime();
-                        stmt.setString(6, convertToTimeStamp(report_time).toString());
+                        stmt.setLong(1, generatedKey);
+                        stmt.setString(2, convertToTimeStamp(report_time).toString());
                         stmt.addBatch();
                     }                 
                     for(int r : stmt.executeBatch()){
