@@ -42,10 +42,7 @@ public class WriteParsedToDataBase implements Runnable {
     private final String sqlJTypeB = "INSERT INTO JTypeB " + 
                         "(protocol_version, type, device_id, report_time, event_name, reports) " +
                         "VALUES(?,?,?,?,?,?);";
-    /*private final String sqlJTypeC = "INSERT INTO JTypeC " + 
-                        "(protocol_version, type, device_id, report_time, event_name, reports) " +
-                        "VALUES(?,?,?,?,?,?);";*/
-    private final String sqlJTypeC = "INSERT INTO JTypeCtrue " + 
+    private final String sqlJTypeC = "INSERT INTO JTypeC " + 
                         "(protocol_version, type, device_id, report_time, event_name) " +
                         "VALUES(?,?,?,?,?);";
     private final String sqlJTypeCtime = "INSERT INTO reports " + 
