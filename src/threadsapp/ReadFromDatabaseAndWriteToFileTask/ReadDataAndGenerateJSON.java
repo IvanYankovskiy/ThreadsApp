@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicBoolean;
 /**
  *
@@ -47,15 +48,18 @@ public class ReadDataAndGenerateJSON implements Runnable {
     public void run() {
         boolean isDone = false;
         System.out.println(Thread.currentThread().getName()+ " начал чтение из БД");
-        //Timestamp nextReportTime = getFirstReportTime();
         try {
             while(true & !isDone){
                 lock.lock();
                 PreparedStatement stmt = null;
                 Connection conn = null; 
                 try{
-                    //sql = "SELECT* FROM " + jsonType + " WHERE report_time <= ? ORDER BY report_time DESC LIMIT ?;";
-                    sql = "SELECT* FROM " + jsonType + " ORDER BY report_time DESC LIMIT ? OFFSET ?;";
+                    if (jsonType.equals("JTypeC"))
+                        sql = "SELECT* FROM reports RIGHT JOIN " + 
+                                "(SELECT* FROM jtypec ORDER BY jtypec.id DESC LIMIT ? OFFSET ?) jtypec " +
+                                " using(id);";
+                    else
+                        sql = "SELECT* FROM " + jsonType + " ORDER BY report_time DESC LIMIT ? OFFSET ?;";
                     conn = cpds.getConnection();
                     stmt = conn.prepareStatement(sql);
                     //stmt.setTimestamp(1, nextReportTime);
@@ -68,7 +72,6 @@ public class ReadDataAndGenerateJSON implements Runnable {
                             rs.previous();
                         while (rs.next()) {
                             JType jTypeObj;
-                            //nextReportTime = rs.getTimestamp("report_time");
                             jTypeObj = createJsonABtypeString(jsonType,rs);
                             String jsonString = JSON.toJSONString(jTypeObj);
                             outputQueue.put(jsonString);
@@ -130,20 +133,22 @@ public class ReadDataAndGenerateJSON implements Runnable {
                 result = obj;
             }
             if(JType.equals("JTypeC")){
-                ArrayList <JTypeTime> reports = new ArrayList <JTypeTime>();
+                long id = rs.getLong("id");
+                LinkedList <JTypeTime> reports = new LinkedList <JTypeTime>();
                 boolean createAndMoveOn = true;
                 do {
-                    String di = rs.getString("device_id");
-                    String en = rs.getString("event_name");
-                    if((device_id.equals(di))
-                            &(event_name.equals(en))){
-                        Instant temp_time = timestampToInstant(rs.getTimestamp("report_time"));
+                    if(id == rs.getLong("id")){
+                        Instant temp_time = timestampToInstant(rs.getTimestamp("time"));
                         JTypeTime time = new JTypeTime(temp_time);
                         reports.add(time);
-                        if(rs.next())
+                        //перемещаем курсор и проверям, есть ли следующий элемент и проверяем id следующей строки
+                        //если он совпадает с рассмтариваемым, то цикл повторится
+                        if(rs.next() & (id == rs.getLong("id")))
                             createAndMoveOn = false;
-                        else
+                        else{
                             createAndMoveOn = true;
+                            rs.previous();
+                        }
                     }else{
                         createAndMoveOn = true;
                         rs.previous(); 
@@ -167,40 +172,6 @@ public class ReadDataAndGenerateJSON implements Runnable {
     private Instant timestampToInstant(Timestamp objTime){
             return  objTime.toInstant();
     }    
-    private Timestamp getFirstReportTime(){
-        Statement stmt = null;
-        Connection conn = null;
-        sql = "SELECT* FROM " + jsonType + " ORDER BY report_time DESC LIMIT 1;";
-        Timestamp currentReport_time = Timestamp.from(Instant.MIN);
-        try {
-            conn = cpds.getConnection();
-            stmt= conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql); 
-                while (rs.next()) {
-                    currentReport_time = rs.getTimestamp("report_time");
-                    JType jTypeObj = createJsonABtypeString(jsonType,rs);
-                    outputQueue.put(JSON.toJSONString(jTypeObj));
-                }
-                rs.close();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(ReadDataAndGenerateJSON.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SQLException ex) {
-        Logger.getLogger(ReadDataAndGenerateJSON.class.getName()).log(Level.SEVERE, null, ex);
-        }finally{
-            try{
-                if(stmt!=null)
-                    conn.close();
-            }catch(SQLException se){
-            }
-            try{
-                if(conn!=null)
-                    conn.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
-        }
-        return currentReport_time;
-    }
     private Timestamp convertToTimeStamp(Instant objTime){ 
         //System.out.println(objTime.toString());         
         LocalDateTime ldt = LocalDateTime.ofInstant(objTime, ZoneOffset.UTC);

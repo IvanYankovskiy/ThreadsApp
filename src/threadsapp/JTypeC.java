@@ -35,37 +35,39 @@ JTypeС
 
 */
 public class JTypeC extends JType{
-    private ArrayList <JTypeTime> reports;
+    private LinkedList <JTypeTime> reports;
     public JTypeC(){
         super.setType("JTypeC");
         reports = generateRandomNuberInReports();
         Instant report_time = generateReport_time();
         super.setReport_time(report_time);
     }
-    public JTypeC(double protocol_version, String type, String device_id, Instant report_time, String event_name, ArrayList <JTypeTime> reports){
+    public JTypeC(double protocol_version, String type, String device_id, Instant report_time, String event_name, LinkedList <JTypeTime> reports){
         super(protocol_version, device_id, report_time, event_name);
         super.setType(type);
         this.reports = reports;
     }
-    public ArrayList <JTypeTime> getReports(){
+    public LinkedList <JTypeTime> getReports(){
         return reports;
     }
-    public void setReports(ArrayList <JTypeTime> reports){
+    public void setReports(LinkedList <JTypeTime> reports){
         this.reports = reports;
     }
-    public static ArrayList <JTypeTime> generateRandomNuberInReports(){
-        ArrayList <JTypeTime> reports = new ArrayList <JTypeTime>();
+    public static LinkedList <JTypeTime> generateRandomNuberInReports(){
+        LinkedList <JTypeTime> reports = new LinkedList <JTypeTime>();
         Random r = new Random();
         Instant reference_time = generateReport_time();
         reference_time = reference_time.minus(1,ChronoUnit.DAYS);
-        
+        Set <JTypeTime> reportsSet = new HashSet<JTypeTime>();
         int j = r.nextInt(4) + 1;
         for(int i = 0; i < j; i++){
             reference_time = reference_time.minus(r.nextInt(59),ChronoUnit.MINUTES);
             reference_time = reference_time.minus(r.nextInt(100)+1,ChronoUnit.MILLIS);
             JTypeTime JTimeObject = new JTypeTime(reference_time); 
-            reports.add(JTimeObject);
+            reportsSet.add(JTimeObject);
         }
+        
+        reports.addAll(reportsSet);
         //System.out.println(reports.toString());
         return reports;
     }
