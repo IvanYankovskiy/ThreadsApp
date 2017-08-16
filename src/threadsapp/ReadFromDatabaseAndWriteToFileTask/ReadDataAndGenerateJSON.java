@@ -143,8 +143,11 @@ public class ReadDataAndGenerateJSON implements Runnable {
                         reports.add(time);
                         //перемещаем курсор и проверям, есть ли следующий элемент и проверяем id следующей строки
                         //если он совпадает с рассмтариваемым, то цикл повторится
-                        if(rs.next() & (id == rs.getLong("id")))
-                            createAndMoveOn = false;
+                        if(rs.next())
+                            if(id == rs.getLong("id"))
+                                createAndMoveOn = false;
+                            else
+                                createAndMoveOn = true;
                         else{
                             createAndMoveOn = true;
                             rs.previous();
